@@ -1,0 +1,33 @@
+# macOS metadata
+.DS_Store
+.AppleDouble
+._*
+
+# Xcode build products and per-user settings
+build/
+DerivedData/
+xcuserdata/
+*.xcuserstate
+*.xccheckout
+*.xcscmblueprint
+*.moved-aside
+
+# Swift Package Manager local build state
+.build/
+.swiftpm/xcode/xcuserdata/
+
+# Local secrets and signing material
+.env
+.env.*
+!.env.example
+*.p12
+*.pfx
+*.mobileprovision
+*.provisionprofile
+
+# Editor and temporary files
+*.swp
+*.swo
+*~
+.idea/
+.vscode/

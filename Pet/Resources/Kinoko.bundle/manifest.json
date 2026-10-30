@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "name": "Киноко v0.1",
+  "frameWidth": 192,
+  "frameHeight": 208,
+  "animations": {
+    "waiting": {
+      "file": "waiting/sprites.png",
+      "columns": 6,
+      "frameCount": 30,
+      "fps": 30,
+      "pause": 1.5
+    },
+    "rest": {
+      "file": "rest/sprites.png",
+      "columns": 1,
+      "frameCount": 1,
+      "fps": 1,
+      "pause": 0
+    },
+    "running-right": {
+      "file": "running-right/sprites.png",
+      "columns": 6,
+      "frameCount": 30,
+      "fps": 30,
+      "pause": 0
+    },
+    "running-left": {
+      "file": "running-left/sprites.png",
+      "columns": 6,
+      "frameCount": 30,
+      "fps": 30,
+      "pause": 0
+    },
+    "greeting": {
+      "file": "greeting/sprites.png",
+      "columns": 6,
+      "frameCount": 30,
+      "fps": 30,
+      "pause": 0.7
+    }
+  },
+  "gaze": {
+    "file": "gaze/sprites.png",
+    "columns": 8,
+    "frameCount": 16,
+    "fps": 1,
+    "pause": 0
+  }
+}

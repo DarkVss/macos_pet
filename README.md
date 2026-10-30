@@ -1,0 +1,54 @@
+# Pet
+
+A macOS desktop companion. The initial prototype uses sprites, with behavior
+kept independent of rendering so a 3D implementation can be added later.
+
+## Development
+
+Open `Pet.xcodeproj` in Xcode, select the Pet scheme, and run it.
+Requires macOS 14 or later.
+
+The default pet is **Киноко v0.1**, imported from the user's custom pet
+`pet_6add012b33e08191870a9dde6ad7e9a5`. Drag her to move the transparent
+floating window. The animation picker below the pet is currently enabled by
+default for development. Toggle **Отладочное меню эмоций** from the paw icon
+to hide or show it. Selecting an entry starts that animation.
+Showing the picker preserves the pet's screen position.
+The available states, in order, are Ожидание (the default), Отдых,
+Бег вправо, Бег влево, and Приветствие.
+Ожидание uses a fixed body and silhouette with blinking only. Body, hair, and
+tail pixels stay identical throughout the cycle; eye poses are aligned before
+compositing onto the fixed reference frame.
+The menu bar also provides 16 gaze directions (0° is up, clockwise) and quit.
+Right-click the pet to open the same shared menu as the paw icon.
+Use **Направление взгляда → Сбросить угол взгляда** to resume the selected
+activity animation without a forced gaze direction.
+
+The avatar package in `Pet/Resources/Kinoko.bundle` contains 137 transparent
+192×208 frames: four 30-frame animation loops, 16 gaze directions, and one rest
+pose. Each state has a separate `sprites.png`; `manifest.json` defines its
+frame count, grid, FPS, and pause. See [the package format](docs/avatar-format.md).
+The animation loops were expanded from Kinako's original artwork using
+bidirectional optical flow with occlusion-aware blending. The app reads ordinary
+PNG sheets, so future user avatars will not need Xcode atlas compilation.
+No network access or Pets service is required at runtime.
+
+Rendering follows the selected animation's FPS (30 for the bundled loops).
+Static rest and gaze poses request only 1 FPS. Validated images are reused;
+SpriteKit textures are created on first use and cached per sheet, so startup
+only prepares the waiting animation rather than every state.
+Each animated cycle is one second long, followed by its configured pause.
+Intermediate poses are computed offline; the app only plays bundled textures,
+with no runtime optical-flow processing or extra frame dissolves.
+Fast motion and occlusions may still show interpolation artifacts; these
+frames are not equivalent to an animator drawing every intermediate pose.
+Waiting and greeting cycles include pauses to avoid excessively fast repetition.
+Rest uses an existing closed-eye idle frame; the source has no sleep animation.
+Music integration is not implemented.
+
+## Structure
+
+- `PetState.swift`: shared state, rendering contract, and behavior controller.
+- `SpriteAvatar.swift`: package manifest, resource loading, and validation.
+- `SpritePetScene.swift`: sprite presentation and window dragging input.
+- `PetApp.swift`: application lifecycle, floating panel, and menu bar controls.
