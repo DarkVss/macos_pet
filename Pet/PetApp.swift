@@ -45,6 +45,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let view = DraggablePetView(frame: NSRect(x: 0, y: 0, width: 208, height: 224))
         view.allowsTransparency = true
+        view.onDrag = { [weak self] distance in
+            self?.petController?.drag(horizontalDistance: distance)
+        }
+        view.onDragEnded = { [weak self] in
+            self?.petController?.endDragging()
+        }
         view.presentScene(scene)
 
         let panel = NSPanel(

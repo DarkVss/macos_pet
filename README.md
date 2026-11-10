@@ -14,8 +14,10 @@ floating window. The animation picker below the pet is currently enabled by
 default for development. Toggle **Отладочное меню эмоций** from the paw icon
 to hide or show it. Selecting an entry starts that animation.
 Showing the picker preserves the pet's screen position.
+Dragging horizontally temporarily selects the matching running animation;
+releasing the mouse restores the previous activity and gaze direction.
 The available states, in order, are Ожидание (the default), Отдых,
-Бег вправо, Бег влево, and Приветствие.
+Бег вправо, Бег влево, Приветствие, and Слушаю музыку.
 Ожидание uses a fixed body and silhouette with blinking only. Body, hair, and
 tail pixels stay identical throughout the cycle; eye poses are aligned before
 compositing onto the fixed reference frame.
@@ -24,27 +26,29 @@ Right-click the pet to open the same shared menu as the paw icon.
 Use **Направление взгляда → Сбросить угол взгляда** to resume the selected
 activity animation without a forced gaze direction.
 
-The avatar package in `Pet/Resources/Kinoko.bundle` contains 137 transparent
-192×208 frames: four 30-frame animation loops, 16 gaze directions, and one rest
-pose. Each state has a separate `sprites.png`; `manifest.json` defines its
+The avatar package in `Pet/Resources/Kinoko.bundle` contains 149 transparent
+192×208 frames: four 30-frame animation loops, a 12-frame music-listening loop,
+16 gaze directions, and one rest pose. Each state has a separate `sprites.png`; `manifest.json` defines its
 frame count, grid, FPS, and pause. See [the package format](docs/avatar-format.md).
-The animation loops were expanded from Kinako's original artwork using
+The four original animation loops were expanded from Kinako's original artwork using
 bidirectional optical flow with occlusion-aware blending. The app reads ordinary
 PNG sheets, so future user avatars will not need Xcode atlas compilation.
 No network access or Pets service is required at runtime.
 
-Rendering follows the selected animation's FPS (30 for the bundled loops).
+Rendering follows the selected animation's FPS (30 for the original loops,
+6 for music listening).
 Static rest and gaze poses request only 1 FPS. Validated images are reused;
 SpriteKit textures are created on first use and cached per sheet, so startup
 only prepares the waiting animation rather than every state.
-Each animated cycle is one second long, followed by its configured pause.
+The original animated cycles are one second long, followed by their configured pause.
+The music-listening animation uses 12 generated keyframes at 6 FPS for a two-second loop.
 Intermediate poses are computed offline; the app only plays bundled textures,
 with no runtime optical-flow processing or extra frame dissolves.
 Fast motion and occlusions may still show interpolation artifacts; these
 frames are not equivalent to an animator drawing every intermediate pose.
 Waiting and greeting cycles include pauses to avoid excessively fast repetition.
 Rest uses an existing closed-eye idle frame; the source has no sleep animation.
-Music integration is not implemented.
+Слушаю музыку is selected manually; player integration is not implemented.
 
 ## Structure
 

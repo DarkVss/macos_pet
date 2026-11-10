@@ -14,6 +14,7 @@ rest/sprites.png
 running-right/sprites.png
 running-left/sprites.png
 greeting/sprites.png
+listening-to-music/sprites.png
 gaze/sprites.png          # необязательно
 ```
 
@@ -26,6 +27,7 @@ gaze/sprites.png          # необязательно
 | `running-right` | Бег вправо |
 | `running-left` | Бег влево |
 | `greeting` | Приветствие |
+| `listening-to-music` | Слушаю музыку |
 
 `manifest.json` задаёт имя, общий размер кадра и параметры каждого листа:
 
@@ -47,7 +49,7 @@ gaze/sprites.png          # необязательно
 }
 ```
 
-В примере выше показано одно состояние; в готовом пакете нужны все пять.
+В примере выше показано одно состояние; в готовом пакете нужны все шесть.
 Полный рабочий пример — `Pet/Resources/Kinoko.bundle/manifest.json`.
 
 - PNG должен иметь прозрачный фон. Кадры идут слева направо, затем сверху вниз.

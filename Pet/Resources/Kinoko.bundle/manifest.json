@@ -38,6 +38,13 @@
       "frameCount": 30,
       "fps": 30,
       "pause": 0.7
+    },
+    "listening-to-music": {
+      "file": "listening-to-music/sprites.png",
+      "columns": 4,
+      "frameCount": 12,
+      "fps": 6,
+      "pause": 0
     }
   },
   "gaze": {

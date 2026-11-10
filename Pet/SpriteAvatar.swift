@@ -42,7 +42,7 @@ struct SpriteAvatar {
         }
         let supportedStates = Set(PetState.Activity.allCases.map(\.rawValue))
         guard Set(manifest.animations.keys) == supportedStates else {
-            throw InvalidPackage(reason: "Аватар должен содержать пять поддерживаемых состояний")
+            throw InvalidPackage(reason: "Аватар должен содержать все поддерживаемые состояния")
         }
         for activity in PetState.Activity.allCases {
             guard let sheet = manifest.animations[activity.rawValue] else {

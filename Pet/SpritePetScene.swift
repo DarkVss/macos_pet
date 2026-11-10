@@ -105,8 +105,33 @@ final class SpritePetScene: SKScene, PetRendering {
 }
 
 final class DraggablePetView: SKView {
+    var onDrag: ((Double) -> Void)?
+    var onDragEnded: (() -> Void)?
+    private var dragOrigin: (mouse: NSPoint, window: NSPoint)?
+    private var directionAnchorX: CGFloat = 0
+
     override func mouseDown(with event: NSEvent) {
-        window?.performDrag(with: event)
+        guard let window else { return }
+        let mouse = NSEvent.mouseLocation
+        dragOrigin = (mouse, window.frame.origin)
+        directionAnchorX = mouse.x
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        guard let window, let origin = dragOrigin else { return }
+        let mouse = NSEvent.mouseLocation
+        window.setFrameOrigin(NSPoint(x: origin.window.x + mouse.x - origin.mouse.x,
+                                      y: origin.window.y + mouse.y - origin.mouse.y))
+        let distance = mouse.x - directionAnchorX
+        if abs(distance) >= 2 {
+            onDrag?(Double(distance))
+            directionAnchorX = mouse.x
+        }
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        dragOrigin = nil
+        onDragEnded?()
     }
 
     override func rightMouseDown(with event: NSEvent) {

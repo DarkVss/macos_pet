@@ -6,6 +6,7 @@ struct PetState {
         case walkingRight = "running-right"
         case walkingLeft = "running-left"
         case waving = "greeting"
+        case listeningToMusic = "listening-to-music"
 
         var title: String {
             switch self {
@@ -14,6 +15,7 @@ struct PetState {
             case .walkingRight: "Бег вправо"
             case .walkingLeft: "Бег влево"
             case .waving: "Приветствие"
+            case .listeningToMusic: "Слушаю музыку"
             }
         }
     }
@@ -32,6 +34,7 @@ protocol PetRendering: AnyObject {
 final class PetController {
     private let renderer: any PetRendering
     private(set) var state = PetState()
+    private var stateBeforeDragging: PetState?
 
     init(renderer: any PetRendering) {
         self.renderer = renderer
@@ -51,6 +54,23 @@ final class PetController {
 
     func resetLook() {
         state.lookDirection = nil
+        renderer.display(state)
+    }
+
+    func drag(horizontalDistance: Double) {
+        guard abs(horizontalDistance) >= 2 else { return }
+        if stateBeforeDragging == nil { stateBeforeDragging = state }
+        let activity: PetState.Activity = horizontalDistance > 0 ? .walkingRight : .walkingLeft
+        guard state.activity != activity || state.lookDirection != nil else { return }
+        state.activity = activity
+        state.lookDirection = nil
+        renderer.display(state)
+    }
+
+    func endDragging() {
+        guard let previous = stateBeforeDragging else { return }
+        stateBeforeDragging = nil
+        state = previous
         renderer.display(state)
     }
 }
