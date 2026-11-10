@@ -48,19 +48,25 @@ Fast motion and occlusions may still show interpolation artifacts; these
 frames are not equivalent to an animator drawing every intermediate pose.
 Waiting and greeting cycles include pauses to avoid excessively fast repetition.
 Rest uses an existing closed-eye idle frame; the source has no sleep animation.
-Слушаю музыку is selected manually. While Apple Music is playing, a «Музыка»
-placeholder appears below the pet and above the animation picker. It remains
-visible while paused, and disappears when Music stops or is closed. Browser calls and other apps do not
-activate it. Pet reads Music's `player state` through Apple Events with a 500 ms
-interval between responses on a separate actor, without launching Music or changing playback.
+While Apple Music is playing or paused, a music block appears below the pet
+and above the animation picker. It contains «Музыка» and previous, play/pause,
+and next buttons. It disappears when Music stops or is closed. Browser calls
+and other apps do not activate it. The central button follows the actual player
+state; controls are briefly disabled while a command is in flight.
+
+The pet automatically uses Слушаю музыку while the block is visible. Dragging
+temporarily overrides it with running; releasing resumes the music reaction.
+When the block disappears, the manually selected activity and gaze are restored. Pet reads Music's `player state` through Apple Events with a 500 ms
+interval between responses on a separate actor, without launching Music. Playback changes only in response to the music buttons.
 The first query to a running Music app may ask for Automation permission.
 App Sandbox stays enabled; the scripting entitlement targets only Music's
 `com.apple.Music.playback` access group. Accessibility is not required.
 
 `MusicPlaybackProviding` separates player integration from the monitor and UI.
 `AppleMusicPlaybackProvider` is the initial implementation; other players can
-supply the same playback-state contract later. Playback controls and track
-metadata are not implemented yet.
+supply the same playback-state contract later. `MusicPlaybackControlling` adds
+semantic previous, play/pause, and next commands independently of the player.
+Track metadata is not implemented yet.
 
 ## Structure
 
@@ -70,4 +76,5 @@ metadata are not implemented yet.
 - `PetApp.swift`: application lifecycle, floating panel, and menu bar controls.
 
 - `MusicPlaybackMonitor.swift`: shared player-state contract and polling lifecycle.
-- `AppleMusicPlaybackProvider.swift`: Apple Music state via its scripting interface.
+- `AppleMusicPlaybackProvider.swift`: Apple Music state and commands via its scripting interface.
+- `MusicControlsView.swift`: player-independent music block and button presentation.

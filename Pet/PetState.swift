@@ -1,5 +1,5 @@
 /// Renderer-independent description of the pet.
-struct PetState {
+struct PetState: Equatable {
     enum Activity: String, CaseIterable {
         case waiting
         case sleeping = "rest"
@@ -34,7 +34,9 @@ protocol PetRendering: AnyObject {
 final class PetController {
     private let renderer: any PetRendering
     private(set) var state = PetState()
-    private var stateBeforeDragging: PetState?
+    private var selectedState = PetState()
+    private var draggingActivity: PetState.Activity?
+    private var isMusicActive = false
 
     init(renderer: any PetRendering) {
         self.renderer = renderer
@@ -42,35 +44,48 @@ final class PetController {
     }
 
     func setActivity(_ activity: PetState.Activity) {
-        state.activity = activity
-        state.lookDirection = nil
-        renderer.display(state)
+        selectedState.activity = activity
+        selectedState.lookDirection = nil
+        updateDisplay()
     }
 
     func look(toward direction: Int) {
-        state.lookDirection = ((direction % 16) + 16) % 16
-        renderer.display(state)
+        selectedState.lookDirection = ((direction % 16) + 16) % 16
+        updateDisplay()
     }
 
     func resetLook() {
-        state.lookDirection = nil
-        renderer.display(state)
+        selectedState.lookDirection = nil
+        updateDisplay()
     }
 
     func drag(horizontalDistance: Double) {
         guard abs(horizontalDistance) >= 2 else { return }
-        if stateBeforeDragging == nil { stateBeforeDragging = state }
-        let activity: PetState.Activity = horizontalDistance > 0 ? .walkingRight : .walkingLeft
-        guard state.activity != activity || state.lookDirection != nil else { return }
-        state.activity = activity
-        state.lookDirection = nil
-        renderer.display(state)
+        draggingActivity = horizontalDistance > 0 ? .walkingRight : .walkingLeft
+        updateDisplay()
     }
 
     func endDragging() {
-        guard let previous = stateBeforeDragging else { return }
-        stateBeforeDragging = nil
-        state = previous
+        draggingActivity = nil
+        updateDisplay()
+    }
+
+    func setMusicActive(_ active: Bool) {
+        isMusicActive = active
+        updateDisplay()
+    }
+
+    private func updateDisplay() {
+        let next: PetState
+        if let activity = draggingActivity {
+            next = PetState(activity: activity)
+        } else if isMusicActive {
+            next = PetState(activity: .listeningToMusic)
+        } else {
+            next = selectedState
+        }
+        guard next != state else { return }
+        state = next
         renderer.display(state)
     }
 }

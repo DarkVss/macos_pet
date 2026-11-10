@@ -1,9 +1,33 @@
 import AppKit
 
-/// Serializes Apple Events away from the UI; never launches Music or changes playback.
-actor AppleMusicPlaybackProvider: MusicPlaybackProviding {
+/// Serializes Apple Events away from the UI and never launches Music.
+actor AppleMusicPlaybackProvider: MusicPlaybackControlling {
     private var script: NSAppleScript?
     private var lastError: Int?
+
+    func perform(_ command: MusicPlaybackCommand) async -> Bool {
+        let instruction: String
+        switch command {
+        case .previous: instruction = "previous track"
+        case .togglePlayPause: instruction = "playpause"
+        case .next: instruction = "next track"
+        }
+        guard let commandScript = NSAppleScript(source: """
+            if application id "com.apple.Music" is not running then return false
+            with timeout of 2 seconds
+                tell application id "com.apple.Music" to \(instruction)
+            end timeout
+            return true
+            """) else { return false }
+        var error: NSDictionary?
+        let result = commandScript.executeAndReturnError(&error)
+        if let error {
+            NSLog("Apple Music command failed (Apple Event error %ld)",
+                  error[NSAppleScript.errorNumber] as? Int ?? 0)
+            return false
+        }
+        return result.booleanValue
+    }
 
     func playbackState() async -> MusicPlaybackState {
         if script == nil {

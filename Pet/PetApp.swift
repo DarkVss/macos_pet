@@ -21,9 +21,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var petView: DraggablePetView?
     private var emotionPicker: NSPopUpButton?
     private var debugMenuItem: NSMenuItem?
-    private var musicLabel: NSTextField?
-    private let musicMonitor = MusicPlaybackMonitor(provider: AppleMusicPlaybackProvider())
-    private let musicControlsHeight: CGFloat = 28
+    private var musicControls: MusicControlsView?
+    private let musicProvider: any MusicPlaybackControlling = AppleMusicPlaybackProvider()
+    private lazy var musicMonitor = MusicPlaybackMonitor(provider: musicProvider)
     private let debugControlsHeight: CGFloat = 44
     private var isDebugMenuEnabled = false
 
@@ -81,13 +81,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         picker.toolTip = "Выберите эмоцию или действие для проигрывания"
         picker.isHidden = true
         container.addSubview(picker)
-        let musicLabel = NSTextField(labelWithString: "Музыка")
-        musicLabel.alignment = .center
-        musicLabel.font = .systemFont(ofSize: 13, weight: .medium)
-        musicLabel.textColor = .labelColor
-        musicLabel.isHidden = true
-        container.addSubview(musicLabel)
-        self.musicLabel = musicLabel
+        let controls = MusicControlsView(frame: NSRect(x: 0, y: 0, width: 208, height: MusicControlsView.height))
+        controls.onCommand = { [weak self] command in
+            self?.performMusicCommand(command)
+        }
+        container.addSubview(controls)
+        musicControls = controls
         panel.contentView = container
         petView = view
         emotionPicker = picker
@@ -128,16 +127,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.statusItem = statusItem
         setDebugMenuEnabled(true)
         musicMonitor.start { [weak self] state in
-            guard let self, let label = self.musicLabel else { return }
-            let hidden = state != .playing && state != .paused
-            guard label.isHidden != hidden else { return }
-            label.isHidden = hidden
-            self.updateControlsLayout()
+            self?.displayMusicState(state)
         }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
         musicMonitor.stop()
+    }
+
+    private func displayMusicState(_ state: MusicPlaybackState) {
+        guard let controls = musicControls else { return }
+        let wasHidden = controls.isHidden
+        controls.display(state)
+        petController?.setMusicActive(!controls.isHidden)
+        if wasHidden != controls.isHidden { updateControlsLayout() }
+    }
+
+    private func performMusicCommand(_ command: MusicPlaybackCommand) {
+        musicControls?.setCommandInProgress(true)
+        Task { [weak self, musicProvider] in
+            _ = await musicProvider.perform(command)
+            let state = await musicProvider.playbackState()
+            guard let self else { return }
+            self.displayMusicState(state)
+            self.musicControls?.setCommandInProgress(false)
+        }
     }
 
     @objc private func toggleDebugMenu(_ sender: NSMenuItem) {
@@ -154,7 +168,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func updateControlsLayout() {
         guard let panel, let petView else { return }
         let debugHeight = isDebugMenuEnabled ? debugControlsHeight : 0
-        let musicHeight = musicLabel?.isHidden == false ? musicControlsHeight : 0
+        let musicHeight = musicControls?.isHidden == false ? MusicControlsView.height : 0
         let controlsHeight = debugHeight + musicHeight
         let delta = controlsHeight - petView.frame.minY
         var frame = panel.frame
@@ -164,7 +178,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel.setFrame(frame, display: false)
         petView.setFrameOrigin(NSPoint(x: 0, y: controlsHeight))
         emotionPicker?.isHidden = !isDebugMenuEnabled
-        musicLabel?.frame = NSRect(x: 8, y: debugHeight + 4, width: 192, height: 20)
+        musicControls?.setFrameOrigin(NSPoint(x: 0, y: debugHeight))
         // AppKit schedules layout and drawing after the menu action finishes.
         // Drawing synchronously here can reenter an ongoing layout pass.
         panel.contentView?.needsDisplay = true

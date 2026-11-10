@@ -12,6 +12,16 @@ protocol MusicPlaybackProviding: Sendable {
     func playbackState() async -> MusicPlaybackState
 }
 
+enum MusicPlaybackCommand: Int, CaseIterable, Sendable {
+    case previous
+    case togglePlayPause
+    case next
+}
+
+protocol MusicPlaybackControlling: MusicPlaybackProviding {
+    func perform(_ command: MusicPlaybackCommand) async -> Bool
+}
+
 @MainActor
 final class MusicPlaybackMonitor {
     private let provider: any MusicPlaybackProviding
