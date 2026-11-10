@@ -22,6 +22,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var emotionPicker: NSPopUpButton?
     private var debugMenuItem: NSMenuItem?
     private var musicLabel: NSTextField?
+    private let musicMonitor = MusicPlaybackMonitor(provider: AppleMusicPlaybackProvider())
     private let musicControlsHeight: CGFloat = 28
     private let debugControlsHeight: CGFloat = 44
     private var isDebugMenuEnabled = false
@@ -126,6 +127,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         view.menu = menu
         self.statusItem = statusItem
         setDebugMenuEnabled(true)
+        musicMonitor.start { [weak self] state in
+            guard let self, let label = self.musicLabel else { return }
+            let hidden = state != .playing && state != .paused
+            guard label.isHidden != hidden else { return }
+            label.isHidden = hidden
+            self.updateControlsLayout()
+        }
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        musicMonitor.stop()
     }
 
     @objc private func toggleDebugMenu(_ sender: NSMenuItem) {

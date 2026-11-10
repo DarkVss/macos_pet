@@ -48,11 +48,19 @@ Fast motion and occlusions may still show interpolation artifacts; these
 frames are not equivalent to an animator drawing every intermediate pose.
 Waiting and greeting cycles include pauses to avoid excessively fast repetition.
 Rest uses an existing closed-eye idle frame; the source has no sleep animation.
-Слушаю музыку is selected manually. A «Музыка» placeholder is reserved below
-the pet and above the animation picker. Automatic visibility is not connected
-while system Now Playing access is being investigated. Audio-output activity
-is not used to infer media playback: calls and other sounds are not music
-sessions. Playback controls and track metadata are not implemented.
+Слушаю музыку is selected manually. While Apple Music is playing, a «Музыка»
+placeholder appears below the pet and above the animation picker. It remains
+visible while paused, and disappears when Music stops or is closed. Browser calls and other apps do not
+activate it. Pet reads Music's `player state` through Apple Events with a 500 ms
+interval between responses on a separate actor, without launching Music or changing playback.
+The first query to a running Music app may ask for Automation permission.
+App Sandbox stays enabled; the scripting entitlement targets only Music's
+`com.apple.Music.playback` access group. Accessibility is not required.
+
+`MusicPlaybackProviding` separates player integration from the monitor and UI.
+`AppleMusicPlaybackProvider` is the initial implementation; other players can
+supply the same playback-state contract later. Playback controls and track
+metadata are not implemented yet.
 
 ## Structure
 
@@ -60,3 +68,6 @@ sessions. Playback controls and track metadata are not implemented.
 - `SpriteAvatar.swift`: package manifest, resource loading, and validation.
 - `SpritePetScene.swift`: sprite presentation and window dragging input.
 - `PetApp.swift`: application lifecycle, floating panel, and menu bar controls.
+
+- `MusicPlaybackMonitor.swift`: shared player-state contract and polling lifecycle.
+- `AppleMusicPlaybackProvider.swift`: Apple Music state via its scripting interface.
