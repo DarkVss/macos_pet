@@ -21,6 +21,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var petView: DraggablePetView?
     private var emotionPicker: NSPopUpButton?
     private var debugMenuItem: NSMenuItem?
+    private var musicLabel: NSTextField?
+    private let musicControlsHeight: CGFloat = 28
     private let debugControlsHeight: CGFloat = 44
     private var isDebugMenuEnabled = false
 
@@ -78,6 +80,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         picker.toolTip = "Выберите эмоцию или действие для проигрывания"
         picker.isHidden = true
         container.addSubview(picker)
+        let musicLabel = NSTextField(labelWithString: "Музыка")
+        musicLabel.alignment = .center
+        musicLabel.font = .systemFont(ofSize: 13, weight: .medium)
+        musicLabel.textColor = .labelColor
+        musicLabel.isHidden = true
+        container.addSubview(musicLabel)
+        self.musicLabel = musicLabel
         panel.contentView = container
         petView = view
         emotionPicker = picker
@@ -125,16 +134,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func setDebugMenuEnabled(_ enabled: Bool) {
         debugMenuItem?.state = enabled ? .on : .off
-        guard enabled != isDebugMenuEnabled, let panel, let petView else { return }
-        let delta = enabled ? debugControlsHeight : -debugControlsHeight
+        guard enabled != isDebugMenuEnabled else { return }
+        isDebugMenuEnabled = enabled
+        updateControlsLayout()
+    }
+
+    private func updateControlsLayout() {
+        guard let panel, let petView else { return }
+        let debugHeight = isDebugMenuEnabled ? debugControlsHeight : 0
+        let musicHeight = musicLabel?.isHidden == false ? musicControlsHeight : 0
+        let controlsHeight = debugHeight + musicHeight
+        let delta = controlsHeight - petView.frame.minY
         var frame = panel.frame
         // Grow downwards so the pet keeps its position on screen.
         frame.origin.y -= delta
         frame.size.height += delta
         panel.setFrame(frame, display: false)
-        petView.setFrameOrigin(NSPoint(x: 0, y: enabled ? debugControlsHeight : 0))
-        emotionPicker?.isHidden = !enabled
-        isDebugMenuEnabled = enabled
+        petView.setFrameOrigin(NSPoint(x: 0, y: controlsHeight))
+        emotionPicker?.isHidden = !isDebugMenuEnabled
+        musicLabel?.frame = NSRect(x: 8, y: debugHeight + 4, width: 192, height: 20)
         // AppKit schedules layout and drawing after the menu action finishes.
         // Drawing synchronously here can reenter an ongoing layout pass.
         panel.contentView?.needsDisplay = true

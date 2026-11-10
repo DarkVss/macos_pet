@@ -48,7 +48,11 @@ Fast motion and occlusions may still show interpolation artifacts; these
 frames are not equivalent to an animator drawing every intermediate pose.
 Waiting and greeting cycles include pauses to avoid excessively fast repetition.
 Rest uses an existing closed-eye idle frame; the source has no sleep animation.
-Слушаю музыку is selected manually; player integration is not implemented.
+Слушаю музыку is selected manually. A «Музыка» placeholder is reserved below
+the pet and above the animation picker. Automatic visibility is not connected
+while system Now Playing access is being investigated. Audio-output activity
+is not used to infer media playback: calls and other sounds are not music
+sessions. Playback controls and track metadata are not implemented.
 
 ## Structure
 
