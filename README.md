@@ -96,7 +96,15 @@ During running the tail follows a descending side-profile curve that flattens
 and gently lifts at the tip. Sway begins around the reference curve's x=0.5
 (about 52% of its arc length), with a net tip deflection of ±40° from that pivot.
 Pelvis rotation is compensated to keep the proximal profile steady.
-Waiting retains its separate gentle sway. The 3D renderer currently exposes waiting with a gentle tail sway (the body keeps its exported rest pose)
+Waiting retains its separate gentle tail sway. Its base pose lowers the arms.
+Ears flick alternately every five seconds (first at five seconds). Every ten
+seconds (first at ten seconds), the lowered arms sweep rearward before the elbows flex and the palms meet at the lower back, the upper torso twists through three spine joints
+to +45° then -45°, with the pelvis, legs and feet fixed, returns to the front, and the hands return to the sides.
+Forearm rotation is shared with the wrists. Rearward shoulder motion overlaps
+the later elbow flexion, without a lifted intermediate pose or waypoint pauses.
+Clothing retains its skeletal deformation; there is no separate cloth simulation.
+The six-second gesture and the ear loop have independent animation players;
+leaving waiting cancels both, and returning restarts their delays. The 3D renderer currently exposes waiting with lowered arms, alternating ear flicks, and a periodic clasp-and-turn gesture
 and running left/right. It turns the model and loops Running in place at 30 FPS;
 the running pose turns 30° toward the viewer from either side profile. It does not move the window automatically. Dragging uses the same constraints
 as sprites. Unsupported rest, greeting, and music reactions are disabled in the

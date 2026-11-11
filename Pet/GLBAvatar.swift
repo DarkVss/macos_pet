@@ -72,6 +72,19 @@ final class GLBAvatar {
         }
     }
 
+    func applyFirstPose(of clipName: String) {
+        guard let clip = clips[clipName] else { return }
+        for channel in clip.channels {
+            let v = channel.values
+            switch channel.path {
+            case "rotation": channel.node.simdOrientation = simd_quatf(vector: SIMD4(v[0], v[1], v[2], v[3]))
+            case "translation": channel.node.simdPosition = SIMD3(v[0], v[1], v[2])
+            case "scale": channel.node.simdScale = SIMD3(v[0], v[1], v[2])
+            default: break
+            }
+        }
+    }
+
     private func build() throws {
         nodes = document.nodes.map { item in
             let node = SCNNode()
