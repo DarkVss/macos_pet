@@ -91,7 +91,12 @@ the source image. The old mixed hair/leg attachment is removed and capped;
 source fur colors are reused in a dedicated tail texture. The original
 Running/Walking clips are retained and supplemented with tail motion and a
 TailIdle clip. Every tail vertex is controlled only by the tail chain, avoiding a stretched
-connector between the pelvis and the old hair-driven attachment. The 3D renderer currently exposes waiting with a gentle tail sway (the body keeps its exported rest pose)
+connector between the pelvis and the old hair-driven attachment.
+During running the tail follows a descending side-profile curve that flattens
+and gently lifts at the tip. Sway begins around the reference curve's x=0.5
+(about 52% of its arc length), with a net tip deflection of ±40° from that pivot.
+Pelvis rotation is compensated to keep the proximal profile steady.
+Waiting retains its separate gentle sway. The 3D renderer currently exposes waiting with a gentle tail sway (the body keeps its exported rest pose)
 and running left/right. It turns the model and loops Running in place at 30 FPS;
 the running pose turns 30° toward the viewer from either side profile. It does not move the window automatically. Dragging uses the same constraints
 as sprites. Unsupported rest, greeting, and music reactions are disabled in the
