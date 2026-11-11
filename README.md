@@ -100,6 +100,11 @@ Waiting retains its separate gentle tail sway. Its base pose lowers the arms.
 Ears flick alternately every five seconds (first at five seconds). Every ten
 seconds (first at ten seconds), the lowered arms sweep rearward before the elbows flex and the palms meet at the lower back, the upper torso twists through three spine joints
 to +45° then -45°, with the pelvis, legs and feet fixed, returns to the front, and the hands return to the sides.
+The head lowers smoothly by 30° during the first turn, remains lowered through
+the opposite turn, and rises in sync with the return to the front. The bend is
+shared by neck/head joints. Long-hair roots follow the scalp position, while
+the hanging chain orientations compensate the head pitch throughout the motion.
+This is an authored gravity-aligned pose, not a full hair physics simulation.
 Forearm rotation is shared with the wrists. Rearward shoulder motion overlaps
 the later elbow flexion, without a lifted intermediate pose or waypoint pauses.
 Clothing retains its skeletal deformation; there is no separate cloth simulation.
