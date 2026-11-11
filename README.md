@@ -1,14 +1,13 @@
 # Pet
 
-A macOS desktop companion. The initial prototype uses sprites, with behavior
-kept independent of rendering so a 3D implementation can be added later.
+A macOS desktop companion. SpriteKit and SceneKit renderers share the same behavior and desktop controls.
 
 ## Development
 
 Open `Pet.xcodeproj` in Xcode, select the Pet scheme, and run it.
 Requires macOS 14 or later.
 
-The default pet is **Киноко v0.1**, imported from the user's custom pet
+The sprite pet is **Кинако v0.1**, imported from the user's custom pet
 `pet_6add012b33e08191870a9dde6ad7e9a5`. Drag her to move the transparent
 floating window. The animation picker below the pet is currently enabled by
 default for development. Toggle **Отладочное меню эмоций** from the paw icon
@@ -26,7 +25,7 @@ Right-click the pet to open the same shared menu as the paw icon.
 Use **Направление взгляда → Сбросить угол взгляда** to resume the selected
 activity animation without a forced gaze direction.
 
-The avatar package in `Pet/Resources/Kinoko.bundle` contains 149 transparent
+The avatar package in `Pet/Resources/Kinako.bundle` contains 149 transparent
 192×208 frames: four 30-frame animation loops, a 12-frame music-listening loop,
 16 gaze directions, and one rest pose. Each state has a separate `sprites.png`; `manifest.json` defines its
 frame count, grid, FPS, and pause. See [the package format](docs/avatar-format.md).
@@ -77,11 +76,38 @@ with a consistent dark appearance for readable text and controls on any desktop.
 A soft silhouette shadow follows the current sprite frame; source artwork and
 alpha channels are unchanged. Shadow rasterization is cached only for static poses.
 
+## 3D avatar
+
+**Кинако 3D v0.1** is bundled in `Pet/Resources/Kinako3D.bundle/avatar.glb`.
+Select **Аватар** in the paw menu or the same right-click menu to switch between
+3D and sprites. The selection survives relaunches; the first launch selects 3D.
+If 3D loading fails, startup falls back to sprites and reports the error.
+A failed selection preserves the existing avatar.
+
+The Meshy/Mixamo export contains 10,336 triangles, 67 bones, and Running/Walking
+clips. The 3D renderer currently exposes static waiting (the exported rest pose)
+and running left/right. It turns the model and loops Running in place at 30 FPS;
+the running pose turns 30° toward the viewer from either side profile. It does not move the window automatically. Dragging uses the same constraints
+as sprites. Unsupported rest, greeting, and music reactions are disabled in the
+picker; the sprite gaze menu is hidden in 3D. Music controls remain available
+without overriding the 3D activity. Waiting stops continuous rendering.
+
+`GLBAvatar` reads the subset of glTF 2.0 used by this bundled asset: embedded
+textures, triangle meshes, skinning, and linear TRS animation. It is not a
+user-facing general GLB importer. SceneKit uses the base-color texture without
+extra lighting for a readable stylized appearance; the other source maps remain
+in the original asset. No dynamic hair, facial animation, or custom tail motion
+has been added. Animation quality and resource use depend on the chosen asset;
+no general performance guarantee is implied.
+
 ## Structure
 
 - `PetState.swift`: shared state, rendering contract, and behavior controller.
 - `SpriteAvatar.swift`: package manifest, resource loading, and validation.
-- `SpritePetScene.swift`: sprite presentation and window dragging input.
+- `SpritePetScene.swift`: sprite presentation.
+- `DraggablePetView.swift`: shared dragging and context-menu input.
+- `GLBAvatar.swift`: bundled GLB geometry, texture, skeleton, and clip loading.
+- `ModelPetRenderer.swift`: 3D presentation and semantic activity mapping.
 - `PetApp.swift`: application lifecycle, floating panel, and menu bar controls.
 
 - `MusicPlaybackMonitor.swift`: shared player-state contract and polling lifecycle.

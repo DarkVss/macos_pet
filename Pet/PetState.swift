@@ -27,12 +27,17 @@ struct PetState: Equatable {
 
 @MainActor
 protocol PetRendering: AnyObject {
+    var supportedActivities: Set<PetState.Activity> { get }
     func display(_ state: PetState)
+}
+
+extension PetRendering {
+    var supportedActivities: Set<PetState.Activity> { Set(PetState.Activity.allCases) }
 }
 
 @MainActor
 final class PetController {
-    private let renderer: any PetRendering
+    private var renderer: any PetRendering
     private(set) var state = PetState()
     private var selectedState = PetState()
     private var draggingActivity: PetState.Activity?
@@ -43,7 +48,16 @@ final class PetController {
         renderer.display(state)
     }
 
+    func replaceRenderer(_ renderer: any PetRendering) {
+        self.renderer = renderer
+        if !renderer.supportedActivities.contains(selectedState.activity) { selectedState = PetState() }
+        draggingActivity = nil
+        updateDisplay()
+        renderer.display(state)
+    }
+
     func setActivity(_ activity: PetState.Activity) {
+        guard renderer.supportedActivities.contains(activity) else { return }
         selectedState.activity = activity
         selectedState.lookDirection = nil
         updateDisplay()
@@ -79,7 +93,7 @@ final class PetController {
         let next: PetState
         if let activity = draggingActivity {
             next = PetState(activity: activity)
-        } else if isMusicActive {
+        } else if isMusicActive && renderer.supportedActivities.contains(.listeningToMusic) {
             next = PetState(activity: .listeningToMusic)
         } else {
             next = selectedState

@@ -1,4 +1,5 @@
 import AppKit
+import SpriteKit
 
 @main
 @MainActor
@@ -15,6 +16,15 @@ enum PetApp {
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    private enum Avatar: String, CaseIterable {
+        case sprite, model
+        var title: String { self == .sprite ? "Кинако v0.1" : "Кинако 3D v0.1" }
+    }
+    private var selectedAvatar = Avatar.sprite
+    private var avatarItems: [NSMenuItem] = []
+    private var avatarTitleItem: NSMenuItem?
+    private var lookMenuItem: NSMenuItem?
+    private var renderer: (any PetRendering)?
     private var panel: NSPanel?
     private var statusItem: NSStatusItem?
     private var petController: PetController?
@@ -29,33 +39,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var isDebugMenuEnabled = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        let avatar: SpriteAvatar
-        let scene: SpritePetScene
-        do {
-            guard let url = Bundle.main.url(forResource: "Kinoko", withExtension: "bundle") else {
-                throw SpriteAvatar.InvalidPackage(reason: "Не найден встроенный аватар")
-            }
-            avatar = try SpriteAvatar(rootURL: url)
-            scene = try SpritePetScene(size: CGSize(width: 208, height: 224), avatar: avatar)
-        } catch {
-            let alert = NSAlert()
-            alert.messageText = "Не удалось загрузить аватар"
-            alert.informativeText = error.localizedDescription
-            alert.runModal()
-            NSApplication.shared.terminate(nil)
-            return
-        }
-        petController = PetController(renderer: scene)
-
         let view = DraggablePetView(frame: NSRect(x: 0, y: 0, width: 208, height: 224))
-        view.allowsTransparency = true
+        petView = view
         view.onDrag = { [weak self] distance in
             self?.petController?.drag(horizontalDistance: distance)
         }
-        view.onDragEnded = { [weak self] in
-            self?.petController?.endDragging()
+        view.onDragEnded = { [weak self] in self?.petController?.endDragging() }
+        let saved = UserDefaults.standard.string(forKey: "SelectedAvatar")
+        do {
+            try installAvatar(Avatar(rawValue: saved ?? "") ?? .model)
+        } catch {
+            do { try installAvatar(.sprite) }
+            catch {
+                showAvatarError(error)
+                NSApplication.shared.terminate(nil)
+                return
+            }
+            showAvatarError(error)
         }
-        view.presentScene(scene)
 
         let panel = PetPanel(
             contentRect: view.frame,
@@ -100,7 +101,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.panel = panel
 
         let menu = NSMenu()
-        menu.addItem(NSMenuItem(title: avatar.manifest.name, action: nil, keyEquivalent: ""))
+        let title = NSMenuItem(title: selectedAvatar.title, action: nil, keyEquivalent: "")
+        avatarTitleItem = title
+        menu.addItem(title)
+        let avatarMenu = NSMenu()
+        for (index, avatar) in Avatar.allCases.enumerated() {
+            let item = NSMenuItem(title: avatar.title, action: #selector(selectAvatar(_:)), keyEquivalent: "")
+            item.target = self
+            item.tag = index
+            avatarMenu.addItem(item)
+            avatarItems.append(item)
+        }
+        let avatarItem = NSMenuItem(title: "Аватар", action: nil, keyEquivalent: "")
+        avatarItem.submenu = avatarMenu
+        menu.addItem(avatarItem)
         let debugItem = NSMenuItem(title: "Отладочное меню эмоций", action: #selector(toggleDebugMenu(_:)), keyEquivalent: "")
         debugItem.target = self
         menu.addItem(debugItem)
@@ -118,7 +132,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             lookMenu.addItem(item)
         }
         lookItem.submenu = lookMenu
-        if avatar.manifest.gaze != nil { menu.addItem(lookItem) }
+        lookMenuItem = lookItem
+        menu.addItem(lookItem)
         menu.addItem(.separator())
         let quitItem = NSMenuItem(title: "Quit Pet", action: #selector(quit), keyEquivalent: "q")
         quitItem.target = self
@@ -129,10 +144,81 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem.menu = menu
         view.menu = menu
         self.statusItem = statusItem
+        updateAvatarControls()
         setDebugMenuEnabled(true)
         musicMonitor.start { [weak self] state in
             self?.displayMusicState(state)
         }
+    }
+
+    private func installAvatar(_ avatar: Avatar) throws {
+        guard let host = petView else { return }
+        let newRenderer: any PetRendering
+        let content: NSView
+        switch avatar {
+        case .sprite:
+            guard let url = Bundle.main.url(forResource: "Kinako", withExtension: "bundle") else {
+                throw SpriteAvatar.InvalidPackage(reason: "Не найден встроенный спрайтовый аватар")
+            }
+            let scene = try SpritePetScene(size: host.bounds.size, avatar: SpriteAvatar(rootURL: url))
+            let spriteView = SKView(frame: host.bounds)
+            spriteView.allowsTransparency = true
+            spriteView.presentScene(scene)
+            newRenderer = scene
+            content = spriteView
+        case .model:
+            guard let package = Bundle.main.url(forResource: "Kinako3D", withExtension: "bundle") else {
+                throw GLBAvatar.InvalidModel(reason: "не найден встроенный пакет")
+            }
+            let model = try ModelPetRenderer(frame: host.bounds, url: package.appendingPathComponent("avatar.glb"))
+            newRenderer = model
+            content = model.view
+        }
+        // Build first: a failed selection leaves the existing pet and menu intact.
+        for view in host.subviews { view.removeFromSuperview() }
+        content.autoresizingMask = [.width, .height]
+        host.addSubview(content)
+        renderer = newRenderer
+        if let petController { petController.replaceRenderer(newRenderer) }
+        else { petController = PetController(renderer: newRenderer) }
+        selectedAvatar = avatar
+        UserDefaults.standard.set(avatar.rawValue, forKey: "SelectedAvatar")
+        updateAvatarControls()
+    }
+
+    private func updateAvatarControls() {
+        avatarTitleItem?.title = selectedAvatar.title
+        for (index, item) in avatarItems.enumerated() {
+            item.state = Avatar.allCases[index] == selectedAvatar ? .on : .off
+        }
+        lookMenuItem?.isHidden = selectedAvatar == .model
+        emotionPicker?.menu?.autoenablesItems = false
+        for (index, activity) in PetState.Activity.allCases.enumerated() {
+            let available = renderer?.supportedActivities.contains(activity) == true
+            emotionPicker?.item(at: index)?.isEnabled = available
+            emotionPicker?.item(at: index)?.toolTip = available ? nil : "Для этого аватара анимация пока не подготовлена"
+        }
+        if let state = petController?.state, let index = PetState.Activity.allCases.firstIndex(of: state.activity) {
+            emotionPicker?.selectItem(at: index)
+        }
+        emotionPicker?.toolTip = selectedAvatar == .model
+            ? "В 3D пока доступны ожидание и бег. Остальные анимации ещё не подготовлены."
+            : "Выберите эмоцию или действие для проигрывания"
+    }
+
+    private func showAvatarError(_ error: Error) {
+        let alert = NSAlert()
+        alert.messageText = "Не удалось загрузить аватар"
+        alert.informativeText = error.localizedDescription
+        alert.runModal()
+    }
+
+    @objc private func selectAvatar(_ sender: NSMenuItem) {
+        guard Avatar.allCases.indices.contains(sender.tag) else { return }
+        let avatar = Avatar.allCases[sender.tag]
+        guard avatar != selectedAvatar else { return }
+        do { try installAvatar(avatar) }
+        catch { showAvatarError(error) }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
