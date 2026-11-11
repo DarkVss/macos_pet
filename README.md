@@ -84,20 +84,26 @@ Select **Аватар** in the paw menu or the same right-click menu to switch b
 If 3D loading fails, startup falls back to sprites and reports the error.
 A failed selection preserves the existing avatar.
 
-The Meshy/Mixamo export contains 10,336 triangles, 67 bones, and Running/Walking
-clips. The 3D renderer currently exposes static waiting (the exported rest pose)
+The Meshy/Mixamo export contains 14,870 triangles and 117 bones, including 50 dedicated tail segments.
+The tail is rebuilt as a separate closed mesh, rooted at the pelvis. Its rest
+shape hangs down behind the legs instead of retaining the sideways curl from
+the source image. The old mixed hair/leg attachment is removed and capped;
+source fur colors are reused in a dedicated tail texture. The original
+Running/Walking clips are retained and supplemented with tail motion and a
+TailIdle clip. Every tail vertex is controlled only by the tail chain, avoiding a stretched
+connector between the pelvis and the old hair-driven attachment. The 3D renderer currently exposes waiting with a gentle tail sway (the body keeps its exported rest pose)
 and running left/right. It turns the model and loops Running in place at 30 FPS;
 the running pose turns 30° toward the viewer from either side profile. It does not move the window automatically. Dragging uses the same constraints
 as sprites. Unsupported rest, greeting, and music reactions are disabled in the
 picker; the sprite gaze menu is hidden in 3D. Music controls remain available
-without overriding the 3D activity. Waiting stops continuous rendering.
+without overriding the 3D activity. Waiting also renders at 30 FPS while the tail animation is active.
 
 `GLBAvatar` reads the subset of glTF 2.0 used by this bundled asset: embedded
 textures, triangle meshes, skinning, and linear TRS animation. It is not a
 user-facing general GLB importer. SceneKit uses the base-color texture without
 extra lighting for a readable stylized appearance; the other source maps remain
-in the original asset. No dynamic hair, facial animation, or custom tail motion
-has been added. Animation quality and resource use depend on the chosen asset;
+in the original asset. Hair and facial expressions remain unchanged. Tail motion uses authored
+skeletal keyframes, without physics simulation. Animation quality and resource use depend on the chosen asset;
 no general performance guarantee is implied.
 
 ## Structure

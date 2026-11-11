@@ -50,7 +50,8 @@ final class ModelPetRenderer: PetRendering {
         let running = state.activity == .walkingRight || state.activity == .walkingLeft
         // Turn 30 degrees toward the viewer from a full side profile.
         turntable.eulerAngles.y = running ? (state.activity == .walkingRight ? .pi / 3 : -.pi / 3) : 0
-        if running, let clip = avatar.clips["Running"] {
+        let clipName = running ? "Running" : "TailIdle"
+        if let clip = avatar.clips[clipName] {
             let grouped = Dictionary(grouping: clip.channels, by: { ObjectIdentifier($0.node) })
             for channels in grouped.values {
                 let animations: [CAAnimation] = channels.map { channel in
@@ -74,8 +75,9 @@ final class ModelPetRenderer: PetRendering {
                 channels[0].node.addAnimation(group, forKey: "activity")
             }
         }
-        view.isPlaying = running
-        view.rendersContinuously = running
+        let animated = avatar.clips[clipName] != nil
+        view.isPlaying = animated
+        view.rendersContinuously = animated
         view.needsDisplay = true
     }
 }
