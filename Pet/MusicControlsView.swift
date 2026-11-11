@@ -1,19 +1,21 @@
 import AppKit
+import QuartzCore
 
 @MainActor
 final class MusicControlsView: NSView {
-    static let height: CGFloat = 64
+    static let height: CGFloat = 86
     var onCommand: ((MusicPlaybackCommand) -> Void)?
     private var buttons: [NSButton] = []
+    private let artistLine = MarqueeTextView(font: .systemFont(ofSize: 12, weight: .medium))
+    private let titleLine = MarqueeTextView(font: .systemFont(ofSize: 13))
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         isHidden = true
-        let label = NSTextField(labelWithString: "Музыка")
-        label.frame = NSRect(x: 8, y: 42, width: 192, height: 18)
-        label.alignment = .center
-        label.font = .systemFont(ofSize: 13, weight: .medium)
-        addSubview(label)
+        artistLine.frame = NSRect(x: 8, y: 62, width: 192, height: 18)
+        titleLine.frame = NSRect(x: 8, y: 42, width: 192, height: 18)
+        addSubview(artistLine)
+        addSubview(titleLine)
         let symbols = ["backward.end.fill", "play.fill", "forward.end.fill"]
         let titles = ["Предыдущий трек", "Воспроизвести", "Следующий трек"]
         for command in MusicPlaybackCommand.allCases {
@@ -35,8 +37,16 @@ final class MusicControlsView: NSView {
         fatalError("Storyboard initialization is unsupported")
     }
 
-    func display(_ state: MusicPlaybackState) {
+    func display(_ snapshot: MusicPlaybackSnapshot) {
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        defer { CATransaction.commit() }
+        let state = snapshot.state
         isHidden = state != .playing && state != .paused
+        artistLine.setText(snapshot.artist.isEmpty ? "Неизвестный исполнитель" : snapshot.artist)
+        titleLine.setText(snapshot.title.isEmpty ? "Без названия" : snapshot.title)
+        artistLine.setActive(!isHidden)
+        titleLine.setActive(!isHidden)
         let title = state == .playing ? "Пауза" : "Воспроизвести"
         let button = buttons[MusicPlaybackCommand.togglePlayPause.rawValue]
         button.image = NSImage(systemSymbolName: state == .playing ? "pause.fill" : "play.fill",

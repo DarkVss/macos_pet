@@ -135,7 +135,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         musicMonitor.stop()
     }
 
-    private func displayMusicState(_ state: MusicPlaybackState) {
+    private func displayMusicState(_ state: MusicPlaybackSnapshot) {
         guard let controls = musicControls else { return }
         let wasHidden = controls.isHidden
         controls.display(state)
@@ -147,7 +147,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         musicControls?.setCommandInProgress(true)
         Task { [weak self, musicProvider] in
             _ = await musicProvider.perform(command)
-            let state = await musicProvider.playbackState()
+            let state = await musicProvider.playbackSnapshot()
             guard let self else { return }
             self.displayMusicState(state)
             self.musicControls?.setCommandInProgress(false)

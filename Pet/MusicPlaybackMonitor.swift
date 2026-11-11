@@ -7,9 +7,15 @@ enum MusicPlaybackState: String, Sendable {
     case playing
 }
 
+struct MusicPlaybackSnapshot: Equatable, Sendable {
+    var state: MusicPlaybackState
+    var artist = ""
+    var title = ""
+}
+
 /// Each player integration supplies the same renderer-independent state.
 protocol MusicPlaybackProviding: Sendable {
-    func playbackState() async -> MusicPlaybackState
+    func playbackSnapshot() async -> MusicPlaybackSnapshot
 }
 
 enum MusicPlaybackCommand: Int, CaseIterable, Sendable {
@@ -31,13 +37,13 @@ final class MusicPlaybackMonitor {
         self.provider = provider
     }
 
-    func start(onChange: @escaping @MainActor (MusicPlaybackState) -> Void) {
+    func start(onChange: @escaping @MainActor (MusicPlaybackSnapshot) -> Void) {
         guard task == nil else { return }
         let provider = provider
         task = Task {
-            var previous: MusicPlaybackState?
+            var previous: MusicPlaybackSnapshot?
             while !Task.isCancelled {
-                let state = await provider.playbackState()
+                let state = await provider.playbackSnapshot()
                 guard !Task.isCancelled else { return }
                 if state != previous {
                     previous = state

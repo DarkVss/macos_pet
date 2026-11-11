@@ -49,8 +49,11 @@ frames are not equivalent to an animator drawing every intermediate pose.
 Waiting and greeting cycles include pauses to avoid excessively fast repetition.
 Rest uses an existing closed-eye idle frame; the source has no sleep animation.
 While Apple Music is playing or paused, a music block appears below the pet
-and above the animation picker. It contains «Музыка» and previous, play/pause,
-and next buttons. It disappears when Music stops or is closed. Browser calls
+and above the animation picker. It contains the artist and track title above previous, play/pause, and next
+buttons. Each metadata row is 192 points wide, matching the animation picker.
+Short text is centered; overflowing text scrolls back and forth with pauses at
+the ends. Unchanged metadata does not restart scrolling, and hidden rows stop
+animating. Full text is also available in tooltips. It disappears when Music stops or is closed. Browser calls
 and other apps do not activate it. The central button follows the actual player
 state; controls are briefly disabled while a command is in flight.
 
@@ -64,9 +67,10 @@ App Sandbox stays enabled; the scripting entitlement targets only Music's
 
 `MusicPlaybackProviding` separates player integration from the monitor and UI.
 `AppleMusicPlaybackProvider` is the initial implementation; other players can
-supply the same playback-state contract later. `MusicPlaybackControlling` adds
+supply the same playback snapshot (state, artist, and title) later. `MusicPlaybackControlling` adds
 semantic previous, play/pause, and next commands independently of the player.
-Track metadata is not implemented yet.
+Metadata changes are observed even when playback stays in the same state.
+Missing metadata is displayed as «Неизвестный исполнитель» or «Без названия».
 
 ## Structure
 
@@ -77,4 +81,5 @@ Track metadata is not implemented yet.
 
 - `MusicPlaybackMonitor.swift`: shared player-state contract and polling lifecycle.
 - `AppleMusicPlaybackProvider.swift`: Apple Music state and commands via its scripting interface.
-- `MusicControlsView.swift`: player-independent music block and button presentation.
+- `MusicControlsView.swift`: player-independent metadata and button presentation.
+- `MarqueeTextView.swift`: clipped, centered text with overflow-only scrolling.
