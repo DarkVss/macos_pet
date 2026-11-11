@@ -137,8 +137,16 @@ final class DraggablePetView: SKView {
     override func mouseDragged(with event: NSEvent) {
         guard let window, let origin = dragOrigin else { return }
         let mouse = NSEvent.mouseLocation
-        window.setFrameOrigin(NSPoint(x: origin.window.x + mouse.x - origin.mouse.x,
-                                      y: origin.window.y + mouse.y - origin.mouse.y))
+        let desiredOrigin = NSPoint(x: origin.window.x + mouse.x - origin.mouse.x,
+                                    y: origin.window.y + mouse.y - origin.mouse.y)
+        let movement = ScreenDragConstraint.translation(
+            of: window.frame,
+            toward: CGPoint(x: desiredOrigin.x - window.frame.minX,
+                            y: desiredOrigin.y - window.frame.minY),
+            screens: NSScreen.screens.map(\.frame)
+        )
+        window.setFrameOrigin(NSPoint(x: window.frame.minX + movement.x,
+                                      y: window.frame.minY + movement.y))
         let distance = mouse.x - directionAnchorX
         if abs(distance) >= 2 {
             onDrag?(Double(distance))

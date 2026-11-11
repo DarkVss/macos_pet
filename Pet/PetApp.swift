@@ -57,7 +57,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         view.presentScene(scene)
 
-        let panel = NSPanel(
+        let panel = PetPanel(
             contentRect: view.frame,
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
@@ -137,6 +137,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         musicMonitor.stop()
+    }
+
+    func applicationDidChangeScreenParameters(_ notification: Notification) {
+        guard let panel else { return }
+        panel.setFrame(panel.frame, display: true)
     }
 
     private func displayMusicState(_ state: MusicPlaybackSnapshot) {
