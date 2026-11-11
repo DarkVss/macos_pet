@@ -22,6 +22,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var emotionPicker: NSPopUpButton?
     private var debugMenuItem: NSMenuItem?
     private var musicControls: MusicControlsView?
+    private var controlsBackdrop: ControlsBackdropView?
     private let musicProvider: any MusicPlaybackControlling = AppleMusicPlaybackProvider()
     private lazy var musicMonitor = MusicPlaybackMonitor(provider: musicProvider)
     private let debugControlsHeight: CGFloat = 44
@@ -70,6 +71,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         let container = NSView(frame: view.frame)
         container.addSubview(view)
+        let backdrop = ControlsBackdropView(frame: .zero)
+        container.addSubview(backdrop)
+        controlsBackdrop = backdrop
         let picker = NSPopUpButton(frame: NSRect(x: 8, y: 8, width: 192, height: 28), pullsDown: false)
         for (index, activity) in PetState.Activity.allCases.enumerated() {
             picker.addItem(withTitle: activity.title)
@@ -80,12 +84,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         picker.setAccessibilityLabel("Эмоция питомца")
         picker.toolTip = "Выберите эмоцию или действие для проигрывания"
         picker.isHidden = true
-        container.addSubview(picker)
+        backdrop.addSubview(picker)
         let controls = MusicControlsView(frame: NSRect(x: 0, y: 0, width: 208, height: MusicControlsView.height))
         controls.onCommand = { [weak self] command in
             self?.performMusicCommand(command)
         }
-        container.addSubview(controls)
+        backdrop.addSubview(controls)
         musicControls = controls
         panel.contentView = container
         petView = view
@@ -170,6 +174,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let debugHeight = isDebugMenuEnabled ? debugControlsHeight : 0
         let musicHeight = musicControls?.isHidden == false ? MusicControlsView.height : 0
         let controlsHeight = debugHeight + musicHeight
+        controlsBackdrop?.frame = NSRect(x: 0, y: 0, width: 208, height: controlsHeight)
+        controlsBackdrop?.isHidden = controlsHeight == 0
         let delta = controlsHeight - petView.frame.minY
         var frame = panel.frame
         // Grow downwards so the pet keeps its position on screen.

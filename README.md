@@ -72,6 +72,11 @@ semantic previous, play/pause, and next commands independently of the player.
 Metadata changes are observed even when playback stays in the same state.
 Missing metadata is displayed as «Неизвестный исполнитель» or «Без названия».
 
+The player and development picker share a rounded translucent dark backdrop
+with a consistent dark appearance for readable text and controls on any desktop.
+A soft silhouette shadow follows the current sprite frame; source artwork and
+alpha channels are unchanged. Shadow rasterization is cached only for static poses.
+
 ## Structure
 
 - `PetState.swift`: shared state, rendering contract, and behavior controller.
@@ -83,3 +88,5 @@ Missing metadata is displayed as «Неизвестный исполнитель
 - `AppleMusicPlaybackProvider.swift`: Apple Music state and commands via its scripting interface.
 - `MusicControlsView.swift`: player-independent metadata and button presentation.
 - `MarqueeTextView.swift`: clipped, centered text with overflow-only scrolling.
+
+- `ControlsBackdropView.swift`: shared contrast surface for controls.

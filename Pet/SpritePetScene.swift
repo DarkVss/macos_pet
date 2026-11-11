@@ -7,6 +7,8 @@ final class SpritePetScene: SKScene, PetRendering {
     private let avatar: SpriteAvatar
     private var textureCache: [String: [SKTexture]] = [:]
     private let pet = SKSpriteNode()
+    private let petShadow = SKSpriteNode()
+    private let shadowEffect = SKEffectNode()
     private var frames: [SKTexture] = []
     private var frameDuration: TimeInterval = 0.1
     private var cyclePause: TimeInterval = 0
@@ -22,6 +24,14 @@ final class SpritePetScene: SKScene, PetRendering {
         let scale = min(192 / Double(avatar.manifest.frameWidth), 208 / Double(avatar.manifest.frameHeight))
         pet.size = CGSize(width: Double(avatar.manifest.frameWidth) * scale,
                           height: Double(avatar.manifest.frameHeight) * scale)
+        petShadow.size = pet.size
+        petShadow.color = .black
+        petShadow.colorBlendFactor = 1
+        petShadow.alpha = 0.45
+        shadowEffect.filter = CIFilter(name: "CIGaussianBlur", parameters: ["inputRadius": 2.5])
+        shadowEffect.zPosition = -1
+        shadowEffect.addChild(petShadow)
+        addChild(shadowEffect)
         if let initial = avatar.manifest.animations[PetState.Activity.waiting.rawValue] {
             _ = try textures(for: initial)
         }
@@ -39,6 +49,7 @@ final class SpritePetScene: SKScene, PetRendering {
 
     private func positionPet() {
         pet.position = CGPoint(x: size.width / 2, y: size.height / 2)
+        petShadow.position = CGPoint(x: pet.position.x, y: pet.position.y - 2)
     }
 
     override func didMove(to view: SKView) {
@@ -85,7 +96,8 @@ final class SpritePetScene: SKScene, PetRendering {
         cyclePause = clip.pause
         animationStart = nil
         currentFrame = 0
-        pet.texture = frames.first
+        shadowEffect.shouldRasterize = frames.count == 1
+        setPose(frames.first)
         playbackFPS = frames.count == 1 ? 1 : Int(ceil(clip.fps))
         view?.preferredFramesPerSecond = playbackFPS
     }
@@ -100,7 +112,12 @@ final class SpritePetScene: SKScene, PetRendering {
         guard index != currentFrame else { return }
         currentFrame = index
 
-        pet.texture = frames[index]
+        setPose(frames[index])
+    }
+
+    private func setPose(_ texture: SKTexture?) {
+        pet.texture = texture
+        petShadow.texture = texture
     }
 }
 
