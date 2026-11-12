@@ -21,6 +21,43 @@ final class GLBAvatar {
     struct Clip {
         let duration: Double
         let channels: [Channel]
+
+        func segment(from start: Double, to end: Double) -> Clip {
+            Clip(duration: end - start, channels: channels.map { channel in
+                let indices = channel.times.indices.filter {
+                    Double(channel.times[$0]) >= start - 0.0001 && Double(channel.times[$0]) <= end + 0.0001
+                }
+                let width = channel.path == "rotation" ? 4 : 3
+                return Channel(node: channel.node, path: channel.path,
+                               times: indices.enumerated().map { offset, index in
+                                   if offset == 0 { return 0 }
+                                   if offset == indices.count - 1 { return Float(end - start) }
+                                   return Float(Double(channel.times[index]) - start)
+                               },
+                               values: indices.flatMap { Array(channel.values[($0 * width)..<(($0 + 1) * width)]) })
+            })
+        }
+
+        func closingLoop(over seconds: Double) -> Clip {
+            Clip(duration: duration, channels: channels.map { channel in
+                var values = channel.values
+                let width = channel.path == "rotation" ? 4 : 3
+                for frame in channel.times.indices {
+                    let u = max(0, min(1, (Double(channel.times[frame]) - duration + seconds) / seconds))
+                    let blend = Float(u * u * (3 - 2 * u))
+                    let offset = frame * width
+                    if width == 4 {
+                        let current = simd_quatf(vector: SIMD4(values[offset], values[offset+1], values[offset+2], values[offset+3]))
+                        let target = simd_quatf(vector: SIMD4(values[0], values[1], values[2], values[3]))
+                        let q = simd_slerp(current, target, blend).vector
+                        for i in 0..<4 { values[offset+i] = q[i] }
+                    } else {
+                        for i in 0..<3 { values[offset+i] += (values[i] - values[offset+i]) * blend }
+                    }
+                }
+                return Channel(node: channel.node, path: channel.path, times: channel.times, values: values)
+            })
+        }
     }
 
     let root = SCNNode()
@@ -77,8 +114,13 @@ final class GLBAvatar {
 
     func applyFirstPose(of clipName: String) {
         guard let clip = clips[clipName] else { return }
+        applyFirstPose(of: clip)
+    }
+
+    func applyFirstPose(of clip: Clip, atEnd: Bool = false) {
         for channel in clip.channels {
-            let v = channel.values
+            let width = channel.path == "rotation" ? 4 : 3
+            let v = atEnd ? Array(channel.values.suffix(width)) : channel.values
             switch channel.path {
             case "rotation": channel.node.simdOrientation = simd_quatf(vector: SIMD4(v[0], v[1], v[2], v[3]))
             case "translation": channel.node.simdPosition = SIMD3(v[0], v[1], v[2])
@@ -92,14 +134,13 @@ final class GLBAvatar {
         for morpher in eyeMorphers { morpher.setWeight(closed ? 1 : 0, forTargetAt: 0) }
     }
 
-    func playMusicEyes() {
-        setEyesClosed(true)
+    func transitionEyes(closed: Bool, duration: TimeInterval) {
         for morpher in eyeMorphers {
-            let animation = CAKeyframeAnimation(keyPath: "weights[0]")
-            animation.values = [1, 1, 0, 0, 1]
-            animation.keyTimes = [0, 5.0 / 23.8, 6.8 / 23.8, 22.0 / 23.8, 1].map { NSNumber(value: $0) }
-            animation.duration = 23.8
-            animation.repeatCount = .greatestFiniteMagnitude
+            let animation = CABasicAnimation(keyPath: "weights[0]")
+            animation.fromValue = closed ? 0 : 1
+            animation.toValue = closed ? 1 : 0
+            animation.duration = duration
+            morpher.setWeight(closed ? 1 : 0, forTargetAt: 0)
             morpher.addAnimation(animation, forKey: "music-eyes")
         }
     }

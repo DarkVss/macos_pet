@@ -12,9 +12,20 @@ final class ModelPetRenderer: PetRendering {
     private var standingPosition = SCNVector3Zero
     private var floorY: CGFloat = 0
     private var displayedState: PetState?
+    private var musicTask: Task<Void, Never>?
+    private var musicClips: [String: GLBAvatar.Clip] = [:]
 
     init(frame: NSRect, url: URL) throws {
         avatar = try GLBAvatar(url: url)
+        if let sequence = avatar.clips["MusicSequence"] {
+            for (name, start, end) in [("rest", 0.0, 4.0), ("rise", 5.0, 6.8),
+                                       ("calm", 6.8, 7.8), ("enter", 7.8, 8.4),
+                                       ("dance", 8.4, 20.4), ("settle", 20.4, 21.0),
+                                       ("lie", 22.0, 23.8)] {
+                musicClips[name] = sequence.segment(from: start, to: end)
+            }
+            musicClips["dance"] = musicClips["dance"]?.closingLoop(over: 0.6)
+        }
         guard avatar.clips["Running"] != nil else {
             throw GLBAvatar.InvalidModel(reason: "нет анимации Running")
         }
@@ -55,6 +66,8 @@ final class ModelPetRenderer: PetRendering {
     func display(_ state: PetState) {
         guard state != displayedState else { return }
         displayedState = state
+        musicTask?.cancel()
+        musicTask = nil
         avatar.restorePose()
         let music = state.activity == .listeningToMusic
         musicProp.isHidden = !music
@@ -65,9 +78,7 @@ final class ModelPetRenderer: PetRendering {
         if running {
             play("Running")
         } else if music {
-            avatar.applyFirstPose(of: "MusicSequence")
-            play("MusicSequence")
-            avatar.playMusicEyes()
+            startMusicCycle()
         } else {
             avatar.applyFirstPose(of: "IdlePose")
             play("TailIdle")
@@ -77,6 +88,51 @@ final class ModelPetRenderer: PetRendering {
         view.isPlaying = true
         view.rendersContinuously = true
         view.needsDisplay = true
+    }
+
+    private func showMusicPhase(_ name: String, closedEyes: Bool = false, animated: Bool = true) {
+        guard let clip = musicClips[name] else { return }
+        avatar.restorePose()
+        let looping = name == "rest" || name == "dance"
+        avatar.applyFirstPose(of: clip, atEnd: animated && !looping)
+        avatar.setEyesClosed(closedEyes)
+        if animated { play("music-" + name, clip: clip, repeats: looping ? .greatestFiniteMagnitude : 1) }
+    }
+
+    deinit { musicTask?.cancel() }
+
+    private func startMusicCycle() {
+        showMusicPhase("rest", closedEyes: true)
+        musicTask = Task { @MainActor [weak self] in
+            do {
+                while !Task.isCancelled {
+                    try await Task.sleep(for: .seconds(Int.random(in: 30...180)))
+                    guard self != nil, !Task.isCancelled else { return }
+                    self?.showMusicPhase("rise", closedEyes: true)
+                    self?.avatar.transitionEyes(closed: false, duration: 1.8)
+                    try await Task.sleep(for: .seconds(1.8))
+                    self?.showMusicPhase("calm", animated: false)
+                    try await Task.sleep(for: .seconds(1))
+                    let repeats = Int.random(in: 4...8)
+                    self?.showMusicPhase("enter")
+                    try await Task.sleep(for: .seconds(0.6))
+                    self?.showMusicPhase("dance")
+                    try await Task.sleep(for: .seconds(12 * repeats))
+                    self?.showMusicPhase("settle")
+                    try await Task.sleep(for: .seconds(0.6))
+                    self?.showMusicPhase("calm", animated: false)
+                    try await Task.sleep(for: .seconds(1))
+                    self?.showMusicPhase("lie")
+                    self?.avatar.transitionEyes(closed: true, duration: 1.8)
+                    try await Task.sleep(for: .seconds(1.8))
+                    self?.showMusicPhase("rest", closedEyes: true)
+                }
+            } catch is CancellationError {
+                // A new activity owns the renderer after cancellation.
+            } catch {
+                NSLog("Music animation cycle failed: %@", error.localizedDescription)
+            }
+        }
     }
 
     private func makeMusicProp() {
@@ -171,8 +227,9 @@ final class ModelPetRenderer: PetRendering {
         }
     }
 
-    private func play(_ clipName: String, delay: TimeInterval = 0) {
-        guard let clip = avatar.clips[clipName] else { return }
+    private func play(_ clipName: String, delay: TimeInterval = 0, clip suppliedClip: GLBAvatar.Clip? = nil,
+                      repeats: Float = .greatestFiniteMagnitude) {
+        guard let clip = suppliedClip ?? avatar.clips[clipName] else { return }
         let grouped = Dictionary(grouping: clip.channels, by: { ObjectIdentifier($0.node) })
         for channels in grouped.values {
             let animations: [CAAnimation] = channels.map { channel in
@@ -192,8 +249,12 @@ final class ModelPetRenderer: PetRendering {
             let group = CAAnimationGroup()
             group.animations = animations
             group.duration = clip.duration
-            group.repeatCount = .greatestFiniteMagnitude
+            group.repeatCount = repeats
+            group.fillMode = .forwards
+            group.isRemovedOnCompletion = false
             let animation = SCNAnimation(caAnimation: group)
+            animation.isRemovedOnCompletion = false
+            animation.fillsForward = true
             animation.startDelay = delay
             channels[0].node.addAnimation(animation, forKey: "activity-" + clipName)
         }
