@@ -86,27 +86,79 @@ final class ModelPetRenderer: PetRendering {
             let m = SCNMaterial(); m.lightingModel = .constant; m.diffuse.contents = color
             return m
         }
-        func box(_ size: SCNVector3, _ position: SCNVector3, _ color: NSColor) {
-            let geometry = SCNBox(width: CGFloat(size.x), height: CGFloat(size.y), length: CGFloat(size.z), chamferRadius: 0.015)
+        let radio = SCNNode()
+        radio.eulerAngles = SCNVector3(-0.08, -0.20, 0)
+        musicProp.addChildNode(radio)
+        func add(_ geometry: SCNGeometry, _ position: SCNVector3, _ color: NSColor) -> SCNNode {
             geometry.materials = [material(color)]
-            let node = SCNNode(geometry: geometry); node.position = position; musicProp.addChildNode(node)
+            let node = SCNNode(geometry: geometry)
+            node.position = position
+            radio.addChildNode(node)
+            return node
         }
-        let pink = NSColor(calibratedRed: 0.87, green: 0.40, blue: 0.65, alpha: 1)
-        let dark = NSColor(calibratedRed: 0.19, green: 0.16, blue: 0.25, alpha: 1)
-        box(SCNVector3(0.37, 0.23, 0.14), SCNVector3Zero, pink)
-        box(SCNVector3(0.24, 0.025, 0.035), SCNVector3(0, 0.18, 0), pink)
-        for x: Float in [-0.11, 0.11] {
-            box(SCNVector3(0.025, 0.07, 0.035), SCNVector3(x, 0.145, 0), pink)
-            let ring = SCNCylinder(radius: 0.071, height: 0.012)
-            ring.materials = [material(x < 0 ? .systemCyan : .systemPink)]
-            let speaker = SCNNode(geometry: ring); speaker.position = SCNVector3(x, -0.015, 0.08)
-            speaker.eulerAngles.x = .pi / 2; musicProp.addChildNode(speaker)
-            let cone = SCNCylinder(radius: 0.052, height: 0.014)
-            cone.materials = [material(dark)]
-            let inset = SCNNode(geometry: cone); inset.position = SCNVector3(x, -0.015, 0.09)
-            inset.eulerAngles.x = .pi / 2; musicProp.addChildNode(inset)
+        func color(_ r: CGFloat, _ g: CGFloat, _ b: CGFloat) -> NSColor {
+            NSColor(calibratedRed: r, green: g, blue: b, alpha: 1)
         }
-        box(SCNVector3(0.07, 0.035, 0.012), SCNVector3(0, 0.055, 0.078), .systemCyan)
+        func box(_ size: SCNVector3, _ position: SCNVector3, _ color: NSColor, radius: CGFloat = 0.01) {
+            let geometry = SCNBox(width: CGFloat(size.x), height: CGFloat(size.y), length: CGFloat(size.z), chamferRadius: radius)
+            geometry.chamferSegmentCount = 6
+            _ = add(geometry, position, color)
+        }
+        func disc(_ radius: CGFloat, _ depth: CGFloat, _ position: SCNVector3, _ color: NSColor) {
+            let geometry = SCNCylinder(radius: radius, height: depth)
+            geometry.radialSegmentCount = 48
+            let node = add(geometry, position, color)
+            node.eulerAngles.x = .pi / 2
+        }
+        func ring(_ radius: CGFloat, _ thickness: CGFloat, _ position: SCNVector3, _ color: NSColor) {
+            let geometry = SCNTorus(ringRadius: radius, pipeRadius: thickness)
+            geometry.ringSegmentCount = 48
+            geometry.pipeSegmentCount = 12
+            let node = add(geometry, position, color)
+            node.eulerAngles.x = .pi / 2
+        }
+        let pink = color(0.77, 0.37, 0.57)
+        let silver = color(0.85, 0.80, 0.84)
+        let pale = color(1, 0.86, 0.94)
+        let dark = color(0.22, 0.17, 0.27)
+        // Rounded shell, inset fascia and a darker underside give the radio depth
+        // without adding lighting that would change Kinako's textured appearance.
+        box(SCNVector3(0.38, 0.235, 0.18), SCNVector3Zero, color(0.56, 0.29, 0.44), radius: 0.06)
+        box(SCNVector3(0.366, 0.22, 0.15), SCNVector3(0, 0.006, 0.018), silver, radius: 0.055)
+        box(SCNVector3(0.345, 0.199, 0.09), SCNVector3(0, 0.004, 0.065), pink, radius: 0.043)
+        box(SCNVector3(0.31, 0.012, 0.012), SCNVector3(0, -0.086, 0.107), color(0.94, 0.59, 0.75), radius: 0.005)
+        // An actual opening in the carry handle, rather than a square frame.
+        let handle = NSBezierPath(roundedRect: NSRect(x: -0.12, y: 0.10, width: 0.24, height: 0.13), xRadius: 0.045, yRadius: 0.045)
+        let opening = NSBezierPath(roundedRect: NSRect(x: -0.092, y: 0.103, width: 0.184, height: 0.098), xRadius: 0.026, yRadius: 0.026)
+        handle.append(opening.reversed)
+        handle.flatness = 0.0005
+        let handleShape = SCNShape(path: handle, extrusionDepth: 0.025)
+        handleShape.chamferRadius = 0.005
+        _ = add(handleShape, SCNVector3(0, 0, -0.025), color(0.65, 0.36, 0.51))
+        for (i, x) in [CGFloat(-0.108), 0.108].enumerated() {
+            let accent = i == 0 ? color(0.40, 0.91, 0.96) : color(1, 0.61, 0.87)
+            disc(0.077, 0.014, SCNVector3(x, -0.012, 0.113), dark)
+            ring(0.067, 0.009, SCNVector3(x, -0.012, 0.126), silver)
+            ring(0.056, 0.006, SCNVector3(x, -0.012, 0.135), accent)
+            disc(0.048, 0.010, SCNVector3(x, -0.012, 0.136), color(0.39, 0.30, 0.43))
+            disc(0.034, 0.012, SCNVector3(x, -0.012, 0.143), color(0.29, 0.23, 0.33))
+            disc(0.017, 0.014, SCNVector3(x, -0.012, 0.151), color(0.51, 0.41, 0.53))
+            // A small highlight keeps the rim readable at the normal desktop size.
+            let highlight = SCNSphere(radius: 0.006)
+            _ = add(highlight, SCNVector3(x - 0.038, 0.033, 0.141), pale)
+        }
+        box(SCNVector3(0.093, 0.048, 0.014), SCNVector3(0, 0.064, 0.115), pale, radius: 0.009)
+        box(SCNVector3(0.076, 0.029, 0.012), SCNVector3(0, 0.065, 0.125), dark, radius: 0.005)
+        for x: CGFloat in [-0.025, -0.013, 0, 0.013, 0.025] {
+            box(SCNVector3(0.005, 0.009 + abs(x) * 0.3, 0.003), SCNVector3(x, 0.065, 0.133), color(0.55, 0.91, 0.90), radius: 0.001)
+        }
+        box(SCNVector3(0.065, 0.036, 0.012), SCNVector3(0, -0.005, 0.119), color(0.64, 0.36, 0.51), radius: 0.006)
+        for x: CGFloat in [-0.016, 0.016] {
+            disc(0.008, 0.006, SCNVector3(x, -0.005, 0.129), silver)
+        }
+        for x: CGFloat in [-0.047, 0, 0.047] {
+            box(SCNVector3(0.032, 0.016, 0.036), SCNVector3(x, 0.123, 0.047), pale, radius: 0.006)
+        }
         for (i, x) in [Float(-0.10), 0.12].enumerated() {
             let text = SCNText(string: i == 0 ? "♪" : "♫", extrusionDepth: 0)
             text.font = NSFont.systemFont(ofSize: 1)
