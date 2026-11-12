@@ -21,10 +21,6 @@ final class SpritePetScene: SKScene, PetRendering {
         super.init(size: size)
         backgroundColor = .clear
         scaleMode = .resizeFill
-        let scale = min(192 / Double(avatar.manifest.frameWidth), 208 / Double(avatar.manifest.frameHeight))
-        pet.size = CGSize(width: Double(avatar.manifest.frameWidth) * scale,
-                          height: Double(avatar.manifest.frameHeight) * scale)
-        petShadow.size = pet.size
         petShadow.color = .black
         petShadow.colorBlendFactor = 1
         petShadow.alpha = 0.45

@@ -9,22 +9,38 @@ final class ModelPetRenderer: PetRendering {
     private let avatar: GLBAvatar
     private let turntable = SCNNode()
     private let musicProp = SCNNode()
-    private var standingPosition = SCNVector3Zero
-    private var floorY: CGFloat = 0
     private var displayedState: PetState?
     private var musicTask: Task<Void, Never>?
-    private var musicClips: [String: GLBAvatar.Clip] = [:]
+    private var musicClips: [MusicPhase: GLBAvatar.Clip] = [:]
+
+    private enum MusicPhase: String, CaseIterable {
+        case rest, rise, calm, enter, dance, settle, lie
+
+        var interval: ClosedRange<Double> {
+            switch self {
+            case .rest: 0...4
+            case .rise: 5...6.8
+            case .calm: 6.8...7.8
+            case .enter: 7.8...8.4
+            case .dance: 8.4...20.4
+            case .settle: 20.4...21
+            case .lie: 22...23.8
+            }
+        }
+
+        var duration: Double { interval.upperBound - interval.lowerBound }
+        var loops: Bool { self == .rest || self == .dance }
+        var animated: Bool { self != .calm }
+        var closedEyes: Bool { self == .rest || self == .rise }
+    }
 
     init(frame: NSRect, url: URL) throws {
         avatar = try GLBAvatar(url: url)
         if let sequence = avatar.clips["MusicSequence"] {
-            for (name, start, end) in [("rest", 0.0, 4.0), ("rise", 5.0, 6.8),
-                                       ("calm", 6.8, 7.8), ("enter", 7.8, 8.4),
-                                       ("dance", 8.4, 20.4), ("settle", 20.4, 21.0),
-                                       ("lie", 22.0, 23.8)] {
-                musicClips[name] = sequence.segment(from: start, to: end)
+            for phase in MusicPhase.allCases {
+                musicClips[phase] = sequence.segment(from: phase.interval.lowerBound, to: phase.interval.upperBound)
             }
-            musicClips["dance"] = musicClips["dance"]?.closingLoop(over: 0.6)
+            musicClips[.dance] = musicClips[.dance]?.closingLoop(over: MusicPhase.settle.duration)
         }
         guard avatar.clips["Running"] != nil else {
             throw GLBAvatar.InvalidModel(reason: "нет анимации Running")
@@ -38,8 +54,6 @@ final class ModelPetRenderer: PetRendering {
         let height = max.y - min.y
         guard height > 0, height.isFinite else { throw GLBAvatar.InvalidModel(reason: "размер модели") }
         avatar.root.position = SCNVector3(-(min.x + max.x) / 2, -(min.y + max.y) / 2, -(min.z + max.z) / 2)
-        standingPosition = avatar.root.position
-        floorY = -height / 2 + 0.005
         makeMusicProp()
         musicProp.position = SCNVector3(-0.65, -height / 2 + 0.12, 0.65)
         musicProp.isHidden = true
@@ -71,7 +85,6 @@ final class ModelPetRenderer: PetRendering {
         avatar.restorePose()
         let music = state.activity == .listeningToMusic
         musicProp.isHidden = !music
-        avatar.root.position = standingPosition
         let running = state.activity == .walkingRight || state.activity == .walkingLeft
         // Turn 30 degrees toward the viewer from a full side profile.
         turntable.eulerAngles.y = running ? (state.activity == .walkingRight ? .pi / 3 : -.pi / 3) : 0
@@ -90,42 +103,43 @@ final class ModelPetRenderer: PetRendering {
         view.needsDisplay = true
     }
 
-    private func showMusicPhase(_ name: String, closedEyes: Bool = false, animated: Bool = true) {
-        guard let clip = musicClips[name] else { return }
+    private func showMusicPhase(_ phase: MusicPhase) {
+        guard let clip = musicClips[phase] else { return }
         avatar.restorePose()
-        let looping = name == "rest" || name == "dance"
-        avatar.applyFirstPose(of: clip, atEnd: animated && !looping)
-        avatar.setEyesClosed(closedEyes)
-        if animated { play("music-" + name, clip: clip, repeats: looping ? .greatestFiniteMagnitude : 1) }
+        avatar.applyPose(of: clip, atEnd: phase.animated && !phase.loops)
+        avatar.setEyesClosed(phase.closedEyes)
+        if phase.animated {
+            play("music-" + phase.rawValue, clip: clip, repeats: phase.loops ? .greatestFiniteMagnitude : 1)
+        }
     }
 
     deinit { musicTask?.cancel() }
 
     private func startMusicCycle() {
-        showMusicPhase("rest", closedEyes: true)
+        showMusicPhase(.rest)
         musicTask = Task { @MainActor [weak self] in
             do {
                 while !Task.isCancelled {
                     try await Task.sleep(for: .seconds(Int.random(in: 30...180)))
                     guard self != nil, !Task.isCancelled else { return }
-                    self?.showMusicPhase("rise", closedEyes: true)
-                    self?.avatar.transitionEyes(closed: false, duration: 1.8)
-                    try await Task.sleep(for: .seconds(1.8))
-                    self?.showMusicPhase("calm", animated: false)
-                    try await Task.sleep(for: .seconds(1))
+                    self?.showMusicPhase(.rise)
+                    self?.avatar.transitionEyes(closed: false, duration: MusicPhase.rise.duration)
+                    try await Task.sleep(for: .seconds(MusicPhase.rise.duration))
+                    self?.showMusicPhase(.calm)
+                    try await Task.sleep(for: .seconds(MusicPhase.calm.duration))
                     let repeats = Int.random(in: 4...8)
-                    self?.showMusicPhase("enter")
-                    try await Task.sleep(for: .seconds(0.6))
-                    self?.showMusicPhase("dance")
-                    try await Task.sleep(for: .seconds(12 * repeats))
-                    self?.showMusicPhase("settle")
-                    try await Task.sleep(for: .seconds(0.6))
-                    self?.showMusicPhase("calm", animated: false)
-                    try await Task.sleep(for: .seconds(1))
-                    self?.showMusicPhase("lie")
-                    self?.avatar.transitionEyes(closed: true, duration: 1.8)
-                    try await Task.sleep(for: .seconds(1.8))
-                    self?.showMusicPhase("rest", closedEyes: true)
+                    self?.showMusicPhase(.enter)
+                    try await Task.sleep(for: .seconds(MusicPhase.enter.duration))
+                    self?.showMusicPhase(.dance)
+                    try await Task.sleep(for: .seconds(MusicPhase.dance.duration * Double(repeats)))
+                    self?.showMusicPhase(.settle)
+                    try await Task.sleep(for: .seconds(MusicPhase.settle.duration))
+                    self?.showMusicPhase(.calm)
+                    try await Task.sleep(for: .seconds(MusicPhase.calm.duration))
+                    self?.showMusicPhase(.lie)
+                    self?.avatar.transitionEyes(closed: true, duration: MusicPhase.lie.duration)
+                    try await Task.sleep(for: .seconds(MusicPhase.lie.duration))
+                    self?.showMusicPhase(.rest)
                 }
             } catch is CancellationError {
                 // A new activity owns the renderer after cancellation.
@@ -234,7 +248,7 @@ final class ModelPetRenderer: PetRendering {
         for channels in grouped.values {
             let animations: [CAAnimation] = channels.map { channel in
                 let rotation = channel.path == "rotation"
-                let width = rotation ? 4 : 3
+                let width = channel.componentCount
                 let animation = CAKeyframeAnimation(keyPath: rotation ? "orientation" : (channel.path == "scale" ? "scale" : "position"))
                 animation.values = stride(from: 0, to: channel.values.count, by: width).map { index -> NSValue in
                     let v = channel.values

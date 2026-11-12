@@ -16,6 +16,8 @@ final class GLBAvatar {
         let path: String
         let times: [Float]
         let values: [Float]
+
+        var componentCount: Int { path == "rotation" ? 4 : 3 }
     }
 
     struct Clip {
@@ -27,7 +29,7 @@ final class GLBAvatar {
                 let indices = channel.times.indices.filter {
                     Double(channel.times[$0]) >= start - 0.0001 && Double(channel.times[$0]) <= end + 0.0001
                 }
-                let width = channel.path == "rotation" ? 4 : 3
+                let width = channel.componentCount
                 return Channel(node: channel.node, path: channel.path,
                                times: indices.enumerated().map { offset, index in
                                    if offset == 0 { return 0 }
@@ -41,7 +43,7 @@ final class GLBAvatar {
         func closingLoop(over seconds: Double) -> Clip {
             Clip(duration: duration, channels: channels.map { channel in
                 var values = channel.values
-                let width = channel.path == "rotation" ? 4 : 3
+                let width = channel.componentCount
                 for frame in channel.times.indices {
                     let u = max(0, min(1, (Double(channel.times[frame]) - duration + seconds) / seconds))
                     let blend = Float(u * u * (3 - 2 * u))
@@ -114,17 +116,18 @@ final class GLBAvatar {
 
     func applyFirstPose(of clipName: String) {
         guard let clip = clips[clipName] else { return }
-        applyFirstPose(of: clip)
+        applyPose(of: clip)
     }
 
-    func applyFirstPose(of clip: Clip, atEnd: Bool = false) {
+    func applyPose(of clip: Clip, atEnd: Bool = false) {
         for channel in clip.channels {
-            let width = channel.path == "rotation" ? 4 : 3
-            let v = atEnd ? Array(channel.values.suffix(width)) : channel.values
+            let width = channel.componentCount
+            let offset = atEnd ? channel.values.count - width : 0
+            let v = channel.values
             switch channel.path {
-            case "rotation": channel.node.simdOrientation = simd_quatf(vector: SIMD4(v[0], v[1], v[2], v[3]))
-            case "translation": channel.node.simdPosition = SIMD3(v[0], v[1], v[2])
-            case "scale": channel.node.simdScale = SIMD3(v[0], v[1], v[2])
+            case "rotation": channel.node.simdOrientation = simd_quatf(vector: SIMD4(v[offset], v[offset+1], v[offset+2], v[offset+3]))
+            case "translation": channel.node.simdPosition = SIMD3(v[offset], v[offset+1], v[offset+2])
+            case "scale": channel.node.simdScale = SIMD3(v[offset], v[offset+1], v[offset+2])
             default: break
             }
         }
