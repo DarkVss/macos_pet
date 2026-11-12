@@ -66,6 +66,7 @@ final class ModelPetRenderer: PetRendering {
         if running {
             play("Running")
         } else if music {
+            avatar.setEyesClosed(true)
             avatar.applyFirstPose(of: "ListeningToMusic")
             play("ListeningToMusic")
         } else {
