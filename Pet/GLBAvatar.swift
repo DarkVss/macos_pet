@@ -67,6 +67,7 @@ final class GLBAvatar {
     }
 
     func restorePose() {
+        for morpher in eyeMorphers { morpher.removeAllAnimations() }
         setEyesClosed(false)
         for (node, transform) in zip(nodes, restTransforms) {
             node.removeAllAnimations()
@@ -89,6 +90,18 @@ final class GLBAvatar {
 
     func setEyesClosed(_ closed: Bool) {
         for morpher in eyeMorphers { morpher.setWeight(closed ? 1 : 0, forTargetAt: 0) }
+    }
+
+    func playMusicEyes() {
+        setEyesClosed(true)
+        for morpher in eyeMorphers {
+            let animation = CAKeyframeAnimation(keyPath: "weights[0]")
+            animation.values = [1, 1, 0, 0, 1]
+            animation.keyTimes = [0, 5.0 / 23.8, 6.8 / 23.8, 22.0 / 23.8, 1].map { NSNumber(value: $0) }
+            animation.duration = 23.8
+            animation.repeatCount = .greatestFiniteMagnitude
+            morpher.addAnimation(animation, forKey: "music-eyes")
+        }
     }
 
     private func build() throws {

@@ -58,17 +58,16 @@ final class ModelPetRenderer: PetRendering {
         avatar.restorePose()
         let music = state.activity == .listeningToMusic
         musicProp.isHidden = !music
-        // Align the supporting forearm with the floor, independently of the hair silhouette.
-        avatar.root.position = music ? SCNVector3(0.96, floorY + 0.317, -0.07) : standingPosition
+        avatar.root.position = standingPosition
         let running = state.activity == .walkingRight || state.activity == .walkingLeft
         // Turn 30 degrees toward the viewer from a full side profile.
         turntable.eulerAngles.y = running ? (state.activity == .walkingRight ? .pi / 3 : -.pi / 3) : 0
         if running {
             play("Running")
         } else if music {
-            avatar.setEyesClosed(true)
-            avatar.applyFirstPose(of: "ListeningToMusic")
-            play("ListeningToMusic")
+            avatar.applyFirstPose(of: "MusicSequence")
+            play("MusicSequence")
+            avatar.playMusicEyes()
         } else {
             avatar.applyFirstPose(of: "IdlePose")
             play("TailIdle")
