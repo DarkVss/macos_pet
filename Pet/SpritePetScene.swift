@@ -48,8 +48,11 @@ final class SpritePetScene: SKScene, PetRendering {
     }
 
     private func positionPet() {
+        let scale = min(size.width / 208, size.height / 224)
+        pet.size = CGSize(width: 192 * scale, height: 208 * scale)
+        petShadow.size = pet.size
         pet.position = CGPoint(x: size.width / 2, y: size.height / 2)
-        petShadow.position = CGPoint(x: pet.position.x, y: pet.position.y - 2)
+        petShadow.position = CGPoint(x: pet.position.x, y: pet.position.y - 2 * scale)
     }
 
     override func didMove(to view: SKView) {

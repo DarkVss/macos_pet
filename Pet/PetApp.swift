@@ -22,6 +22,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     private var selectedAvatar = Avatar.sprite
     private var avatarItems: [NSMenuItem] = []
+    private let avatarSizes = [100, 150, 200, 250]
+    private var avatarSize = 100
+    private var sizeItems: [NSMenuItem] = []
     private var avatarTitleItem: NSMenuItem?
     private var lookMenuItem: NSMenuItem?
     private var renderer: (any PetRendering)?
@@ -39,7 +42,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var isDebugMenuEnabled = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        let view = DraggablePetView(frame: NSRect(x: 0, y: 0, width: 208, height: 224))
+        let savedSize = UserDefaults.standard.integer(forKey: "AvatarSizePercent")
+        avatarSize = avatarSizes.contains(savedSize) ? savedSize : 100
+        let scale = CGFloat(avatarSize) / 100
+        let view = DraggablePetView(frame: NSRect(x: 0, y: 0, width: 208 * scale, height: 224 * scale))
         petView = view
         view.onDrag = { [weak self] distance in
             self?.petController?.drag(horizontalDistance: distance)
@@ -115,6 +121,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let avatarItem = NSMenuItem(title: "Аватар", action: nil, keyEquivalent: "")
         avatarItem.submenu = avatarMenu
         menu.addItem(avatarItem)
+        let sizeMenu = NSMenu()
+        for percent in avatarSizes {
+            let item = NSMenuItem(title: "\(percent)%", action: #selector(selectAvatarSize(_:)), keyEquivalent: "")
+            item.target = self
+            item.tag = percent
+            item.state = percent == avatarSize ? .on : .off
+            sizeMenu.addItem(item)
+            sizeItems.append(item)
+        }
+        let sizeItem = NSMenuItem(title: "Размер аватара", action: nil, keyEquivalent: "")
+        sizeItem.submenu = sizeMenu
+        menu.addItem(sizeItem)
         let debugItem = NSMenuItem(title: "Отладочное меню эмоций", action: #selector(toggleDebugMenu(_:)), keyEquivalent: "")
         debugItem.target = self
         menu.addItem(debugItem)
@@ -265,20 +283,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let debugHeight = isDebugMenuEnabled ? debugControlsHeight : 0
         let musicHeight = musicControls?.isHidden == false ? MusicControlsView.height : 0
         let controlsHeight = debugHeight + musicHeight
-        controlsBackdrop?.frame = NSRect(x: 0, y: 0, width: 208, height: controlsHeight)
+        let scale = CGFloat(avatarSize) / 100
+        let width = 208 * scale
+        let petHeight = 224 * scale
+        controlsBackdrop?.frame = NSRect(x: (width - 208) / 2, y: 0, width: 208, height: controlsHeight)
         controlsBackdrop?.isHidden = controlsHeight == 0
-        let delta = controlsHeight - petView.frame.minY
         var frame = panel.frame
-        // Grow downwards so the pet keeps its position on screen.
-        frame.origin.y -= delta
-        frame.size.height += delta
+        // Keep the top center anchored when resizing the pet or showing controls.
+        let top = frame.maxY
+        let center = frame.midX
+        frame.size = NSSize(width: width, height: petHeight + controlsHeight)
+        frame.origin = NSPoint(x: center - width / 2, y: top - frame.height)
         panel.setFrame(frame, display: false)
-        petView.setFrameOrigin(NSPoint(x: 0, y: controlsHeight))
+        petView.frame = NSRect(x: 0, y: controlsHeight, width: width, height: petHeight)
+        // Render at the actual view size; scaling a fixed 208×224 coordinate
+        // surface stretches SceneKit's existing drawable and loses detail.
+        petView.setBoundsSize(NSSize(width: width, height: petHeight))
+        for content in petView.subviews { content.frame = petView.bounds }
         emotionPicker?.isHidden = !isDebugMenuEnabled
         musicControls?.setFrameOrigin(NSPoint(x: 0, y: debugHeight))
         // AppKit schedules layout and drawing after the menu action finishes.
         // Drawing synchronously here can reenter an ongoing layout pass.
         panel.contentView?.needsDisplay = true
+    }
+
+    @objc private func selectAvatarSize(_ sender: NSMenuItem) {
+        guard avatarSizes.contains(sender.tag), sender.tag != avatarSize else { return }
+        avatarSize = sender.tag
+        UserDefaults.standard.set(avatarSize, forKey: "AvatarSizePercent")
+        for item in sizeItems { item.state = item.tag == avatarSize ? .on : .off }
+        updateControlsLayout()
     }
 
     @objc private func selectDebugActivity(_ sender: NSPopUpButton) {
