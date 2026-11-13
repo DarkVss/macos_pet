@@ -20,7 +20,7 @@ struct PetState: Equatable {
         }
     }
 
-    var activity: Activity = .waiting
+    var activity: Activity = .sleeping
     /// Clockwise gaze direction in 22.5-degree steps; nil uses activity animation.
     var lookDirection: Int?
 }
@@ -42,6 +42,7 @@ final class PetController {
     private var selectedState = PetState()
     private var draggingActivity: PetState.Activity?
     private var isMusicActive = false
+    private var isRestSelectedManually = false
 
     init(renderer: any PetRendering) {
         self.renderer = renderer
@@ -50,7 +51,10 @@ final class PetController {
 
     func replaceRenderer(_ renderer: any PetRendering) {
         self.renderer = renderer
-        if !renderer.supportedActivities.contains(selectedState.activity) { selectedState = PetState() }
+        if !renderer.supportedActivities.contains(selectedState.activity) {
+            selectedState = PetState()
+            isRestSelectedManually = false
+        }
         draggingActivity = nil
         updateDisplay()
         renderer.display(state)
@@ -59,6 +63,7 @@ final class PetController {
     func setActivity(_ activity: PetState.Activity) {
         guard renderer.supportedActivities.contains(activity) else { return }
         selectedState.activity = activity
+        isRestSelectedManually = activity == .sleeping
         selectedState.lookDirection = nil
         updateDisplay()
     }
@@ -93,6 +98,8 @@ final class PetController {
         let next: PetState
         if let activity = draggingActivity {
             next = PetState(activity: activity)
+        } else if isRestSelectedManually {
+            next = selectedState
         } else if isMusicActive && renderer.supportedActivities.contains(.listeningToMusic) {
             next = PetState(activity: .listeningToMusic)
         } else {

@@ -220,7 +220,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             emotionPicker?.selectItem(at: index)
         }
         emotionPicker?.toolTip = selectedAvatar == .model
-            ? "В 3D доступны ожидание, бег и прослушивание музыки. Остальные анимации ещё не подготовлены."
+            ? "В 3D доступны ожидание, отдых, бег и прослушивание музыки. Остальные анимации ещё не подготовлены."
             : "Выберите эмоцию или действие для проигрывания"
     }
 

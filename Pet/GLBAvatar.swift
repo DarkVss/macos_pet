@@ -67,6 +67,7 @@ final class GLBAvatar {
     private(set) var nodes: [SCNNode] = []
     private var restTransforms: [simd_float4x4] = []
     private var eyeMorphers: [SCNMorpher] = []
+    private var seatedMorphers: [(morpher: SCNMorpher, index: Int)] = []
     private let document: Document
     private let binary: Data
     private var images: [Int: NSImage] = [:]
@@ -108,6 +109,7 @@ final class GLBAvatar {
     func restorePose() {
         for morpher in eyeMorphers { morpher.removeAllAnimations() }
         setEyesClosed(false)
+        setSeatedShirt(false)
         for (node, transform) in zip(nodes, restTransforms) {
             node.removeAllAnimations()
             node.simdTransform = transform
@@ -135,6 +137,10 @@ final class GLBAvatar {
 
     func setEyesClosed(_ closed: Bool) {
         for morpher in eyeMorphers { morpher.setWeight(closed ? 1 : 0, forTargetAt: 0) }
+    }
+
+    func setSeatedShirt(_ seated: Bool) {
+        for target in seatedMorphers { target.morpher.setWeight(seated ? 1 : 0, forTargetAt: target.index) }
     }
 
     func transitionEyes(closed: Bool, duration: TimeInterval) {
@@ -195,19 +201,26 @@ final class GLBAvatar {
                 let geometry = SCNGeometry(sources: [positions, normals, texcoords], elements: [element])
                 geometry.firstMaterial = try material(primitive.material)
                 let meshNode = SCNNode(geometry: geometry)
-                if document.meshes[meshIndex].extras?.targetNames == ["ClosedEyes"],
-                   let target = primitive.targets?.first?["POSITION"] {
+                if let targets = primitive.targets,
+                   let names = document.meshes[meshIndex].extras?.targetNames,
+                   targets.count == names.count {
                     let base = try floats(position)
-                    let delta = try floats(target)
-                    guard base.count == delta.count else { throw InvalidModel(reason: "форма век") }
-                    let vertices = stride(from: 0, to: base.count, by: 3).map { i in
-                        SCNVector3(base[i] + delta[i], base[i+1] + delta[i+1], base[i+2] + delta[i+2])
-                    }
                     let morpher = SCNMorpher()
-                    morpher.targets = [SCNGeometry(sources: [SCNGeometrySource(vertices: vertices)], elements: [element])]
+                    morpher.targets = try targets.map { target in
+                        guard let accessor = target["POSITION"] else { throw InvalidModel(reason: "форма модели") }
+                        let delta = try floats(accessor)
+                        guard base.count == delta.count else { throw InvalidModel(reason: "форма модели") }
+                        let vertices = stride(from: 0, to: base.count, by: 3).map { i in
+                            SCNVector3(base[i] + delta[i], base[i+1] + delta[i+1], base[i+2] + delta[i+2])
+                        }
+                        return SCNGeometry(sources: [SCNGeometrySource(vertices: vertices)], elements: [element])
+                    }
                     morpher.calculationMode = .normalized
                     meshNode.morpher = morpher
-                    eyeMorphers.append(morpher)
+                    if names.first == "ClosedEyes" { eyeMorphers.append(morpher) }
+                    if let index = names.firstIndex(of: "SeatedShirt") {
+                        seatedMorphers.append((morpher, index))
+                    }
                 }
                 nodes[index].addChildNode(meshNode)
                 if let skinIndex = item.skin {

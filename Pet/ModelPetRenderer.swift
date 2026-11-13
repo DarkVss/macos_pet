@@ -5,12 +5,15 @@ import QuartzCore
 @MainActor
 final class ModelPetRenderer: PetRendering {
     let view: SCNView
-    let supportedActivities: Set<PetState.Activity> = [.waiting, .walkingRight, .walkingLeft, .listeningToMusic]
+    let supportedActivities: Set<PetState.Activity> = [.waiting, .sleeping, .walkingRight, .walkingLeft, .listeningToMusic]
     private let avatar: GLBAvatar
     private let turntable = SCNNode()
     private let musicProp = SCNNode()
+    private let bench = SCNNode()
     private var displayedState: PetState?
     private var musicTask: Task<Void, Never>?
+    private var restTask: Task<Void, Never>?
+    private var restLookTask: Task<Void, Never>?
     private var musicClips: [MusicPhase: GLBAvatar.Clip] = [:]
 
     private enum MusicPhase: String, CaseIterable {
@@ -54,6 +57,9 @@ final class ModelPetRenderer: PetRendering {
         let height = max.y - min.y
         guard height > 0, height.isFinite else { throw GLBAvatar.InvalidModel(reason: "размер модели") }
         avatar.root.position = SCNVector3(-(min.x + max.x) / 2, -(min.y + max.y) / 2, -(min.z + max.z) / 2)
+        makeBench()
+        bench.isHidden = true
+        avatar.root.addChildNode(bench)
         makeMusicProp()
         musicProp.position = SCNVector3(-0.65, -height / 2 + 0.12, 0.65)
         musicProp.isHidden = true
@@ -82,16 +88,30 @@ final class ModelPetRenderer: PetRendering {
         displayedState = state
         musicTask?.cancel()
         musicTask = nil
+        restTask?.cancel()
+        restTask = nil
+        restLookTask?.cancel()
+        restLookTask = nil
         avatar.restorePose()
         let music = state.activity == .listeningToMusic
+        let resting = state.activity == .sleeping
         musicProp.isHidden = !music
+        bench.isHidden = !resting
         let running = state.activity == .walkingRight || state.activity == .walkingLeft
         // Turn 30 degrees toward the viewer from a full side profile.
         turntable.eulerAngles.y = running ? (state.activity == .walkingRight ? .pi / 3 : -.pi / 3) : 0
+        if resting { turntable.eulerAngles.y = -.pi / 6 }
+        turntable.eulerAngles.x = resting ? .pi / 36 : 0
         if running {
             play("Running")
         } else if music {
             startMusicCycle()
+        } else if resting {
+            avatar.setSeatedShirt(true)
+            avatar.applyFirstPose(of: "BenchRest")
+            play("BenchRest")
+            startRestEars()
+            startRestLook()
         } else {
             avatar.applyFirstPose(of: "IdlePose")
             play("TailIdle")
@@ -113,7 +133,85 @@ final class ModelPetRenderer: PetRendering {
         }
     }
 
-    deinit { musicTask?.cancel() }
+    deinit {
+        musicTask?.cancel()
+        restTask?.cancel()
+        restLookTask?.cancel()
+    }
+
+    private func startRestLook() {
+        restLookTask = Task { @MainActor [weak self] in
+            do {
+                while !Task.isCancelled {
+                    try await Task.sleep(for: .seconds(Int.random(in: 60...180)))
+                    guard self != nil, !Task.isCancelled else { return }
+                    let clipName = Bool.random() ? "RestLookLeft" : "RestLookRight"
+                    self?.playRestLook(clipName)
+                    try await Task.sleep(for: .seconds(10.8))
+                }
+            } catch is CancellationError {
+                // Switching activity cancels the gesture and restores the head pose.
+            } catch {
+                NSLog("Rest head gesture failed: %@", error.localizedDescription)
+            }
+        }
+    }
+
+    private func playRestLook(_ clipName: String) {
+        for channel in avatar.clips["RestLookLeft"]?.channels ?? [] {
+            channel.node.removeAnimation(forKey: "activity-RestLookLeft")
+            channel.node.removeAnimation(forKey: "activity-RestLookRight")
+        }
+        play(clipName, repeats: 1)
+    }
+
+    private func startRestEars() {
+        restTask = Task { @MainActor [weak self] in
+            do {
+                while !Task.isCancelled {
+                    try await Task.sleep(for: .seconds(Int.random(in: 5...20)))
+                    guard self != nil, !Task.isCancelled else { return }
+                    self?.play(Bool.random() ? "RestEarLeft" : "RestEarRight", repeats: 1)
+                }
+            } catch is CancellationError {
+                // The next activity restores both ears to their rest pose.
+            } catch {
+                NSLog("Rest ear animation failed: %@", error.localizedDescription)
+            }
+        }
+    }
+
+    private func makeBench() {
+        bench.name = "RestBench"
+        func box(_ size: SCNVector3, at position: SCNVector3, color: NSColor) {
+            let shape = SCNBox(width: CGFloat(size.x), height: CGFloat(size.y), length: CGFloat(size.z), chamferRadius: 0.012)
+            shape.chamferSegmentCount = 4
+            let material = SCNMaterial()
+            material.lightingModel = .constant
+            material.diffuse.contents = color
+            shape.materials = [material]
+            let node = SCNNode(geometry: shape)
+            node.position = position
+            bench.addChildNode(node)
+        }
+        let wood = NSColor(calibratedRed: 0.76, green: 0.53, blue: 0.40, alpha: 1)
+        let trim = NSColor(calibratedRed: 0.55, green: 0.35, blue: 0.33, alpha: 1)
+        let frame = NSColor(calibratedRed: 0.34, green: 0.28, blue: 0.34, alpha: 1)
+        for z: CGFloat in [-0.12, 0.03, 0.18, 0.33] {
+            box(SCNVector3(1.55, 0.045, 0.135), at: SCNVector3(0, 0.64, z), color: wood)
+        }
+        for x: CGFloat in [-0.64, 0.64] {
+            for z: CGFloat in [-0.12, 0.30] {
+                box(SCNVector3(0.055, 0.60, 0.055), at: SCNVector3(x, 0.32, z), color: frame)
+            }
+            box(SCNVector3(0.065, 0.05, 0.54), at: SCNVector3(x, 0.59, 0.10), color: frame)
+            box(SCNVector3(0.055, 0.48, 0.055), at: SCNVector3(x, 0.88, -0.26), color: frame)
+        }
+        for y: CGFloat in [0.83, 1.02] {
+            box(SCNVector3(1.55, 0.14, 0.045), at: SCNVector3(0, y, -0.26), color: trim)
+        }
+        box(SCNVector3(1.28, 0.04, 0.04), at: SCNVector3(0, 0.24, -0.12), color: frame)
+    }
 
     private func startMusicCycle() {
         showMusicPhase(.rest)
